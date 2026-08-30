@@ -3,79 +3,110 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Laboratorio de Mecánica Orbital</title>
+  <title>Laboratorio Orbital</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
   <link rel="stylesheet" href="./src/style.css" />
 </head>
 <body>
   <main id="app">
-    <!-- IZQUIERDA: simulación Phaser -->
+    <!-- IZQUIERDA: escena espacial -->
     <section id="left">
-      <div id="game"></div>
+      <div id="escena">
+        <div id="game"></div>
+
+        <!-- cartel de impacto, encima del canvas -->
+        <div id="overlay" hidden>
+          <div class="tarjeta">
+            <h3>💥 IMPACTO CON LA TIERRA</h3>
+            <div id="impactoDatos"></div>
+            <button id="btnRetry">REINTENTAR</button>
+          </div>
+        </div>
+      </div>
 
       <div id="controls">
-        <div class="row">
-          <label>Velocidad inicial <b><span id="outV">7.67</span> km/s</b></label>
-          <input id="inV" type="range" min="0" max="15" step="0.01" value="7.67" />
-        </div>
-        <div class="row">
-          <label>Altura <b><span id="outH">400</span> km</b></label>
-          <input id="inH" type="range" min="100" max="20000" step="10" value="400" />
-        </div>
-        <div class="row">
-          <label>Ángulo θ <b><span id="outA">90</span>°</b></label>
-          <input id="inA" type="range" min="0" max="360" step="1" value="90" />
-        </div>
-
-        <div class="buttons">
-          <button id="btnLaunch">LANZAR</button>
-          <button id="btnPause">PAUSA</button>
-          <button id="btnReset">REINICIAR</button>
-          <button id="btnStep">PASO</button>
+        <div class="sliders">
+          <div class="row">
+            <label for="inV">Velocidad inicial <b><span id="outV">7.67</span> km/s</b></label>
+            <input id="inV" type="range" min="0" max="15" step="0.01" value="7.67" />
+          </div>
+          <div class="row">
+            <label for="inH">Altura <b><span id="outH">400</span> km</b></label>
+            <input id="inH" type="range" min="100" max="20000" step="10" value="400" />
+          </div>
+          <div class="row">
+            <label for="inA">Ángulo θ <b><span id="outA">90</span>°</b> <span id="brujula" class="brujula">↑</span></label>
+            <input id="inA" type="range" min="0" max="360" step="1" value="90" />
+          </div>
         </div>
 
-        <div class="row inline">
-          <span>Tiempo:</span>
-          <button class="speed" data-speed="1">×1</button>
-          <button class="speed" data-speed="10">×10</button>
-          <button class="speed" data-speed="100">×100</button>
+        <div class="fila-botones">
+          <div class="buttons">
+            <button id="btnLaunch" class="primario">▶ LANZAR</button>
+            <button id="btnPause">PAUSA</button>
+            <button id="btnStep">PASO</button>
+            <button id="btnReset">REINICIAR</button>
+            <button id="btnClear">LIMPIAR TRAYECTORIA</button>
+          </div>
+
+          <div class="inline">
+            <span class="etq">Tiempo</span>
+            <div class="segmentado">
+              <button class="speed" data-speed="1">×1</button>
+              <button class="speed" data-speed="10">×10</button>
+              <button class="speed" data-speed="100">×100</button>
+            </div>
+          </div>
         </div>
 
-        <div class="row inline checks">
+        <div class="inline checks">
           <label><input id="ckVel" type="checkbox" checked /> vector velocidad</label>
           <label><input id="ckGrav" type="checkbox" checked /> vector gravedad</label>
           <label><input id="ckAxes" type="checkbox" checked /> ejes X/Y</label>
+          <label><input id="ckAyuda" type="checkbox" checked /> ayuda visual</label>
         </div>
 
-        <div class="row presets">
-          <span>Experimentos:</span>
-          <button class="preset" data-v="5" data-h="400" data-a="90">1· insuficiente</button>
-          <button class="preset" data-v="7.67" data-h="400" data-a="90">2· circular</button>
-          <button class="preset" data-v="9.2" data-h="400" data-a="90">3· elíptica</button>
-          <button class="preset" data-v="11.5" data-h="400" data-a="90">4· escape</button>
+        <div class="inline presets">
+          <span class="etq">Experimentos</span>
+          <button class="preset" data-v="5" data-h="400" data-a="90">1 · velocidad insuficiente</button>
+          <button class="preset" data-v="7.67" data-h="400" data-a="90">2 · circular</button>
+          <button class="preset" data-v="9.2" data-h="400" data-a="90">3 · elíptica</button>
+          <button class="preset" data-v="11.5" data-h="400" data-a="90">4 · escape</button>
         </div>
       </div>
     </section>
 
     <!-- DERECHA: matemática -->
     <section id="right">
-      <h1>Laboratorio de Mecánica Orbital</h1>
-      <p class="sub">Tierra: R = 6371 km &nbsp;·&nbsp; μ = 398600 km³/s² &nbsp;·&nbsp; t = <span id="outT">0</span> s
-        &nbsp;·&nbsp; <span id="outStatus" class="status">en pausa</span></p>
+      <header>
+        <h1>Laboratorio Orbital</h1>
+        <p class="sub">Tierra · R = 6371 km · μ = 398600 km³/s² · t = <span id="outT">0</span> s</p>
+      </header>
 
-      <h2>Variables actuales</h2>
-      <div id="vars" class="grid"></div>
+      <div id="estado" class="chip">⚪ LISTA PARA LANZAR</div>
+      <p id="detalleEstado" class="nota"></p>
+
+      <div class="grupos">
+        <div class="grupo"><h2>Posición</h2><div id="gPos" class="grid"></div></div>
+        <div class="grupo"><h2>Velocidad</h2><div id="gVel" class="grid"></div></div>
+        <div class="grupo"><h2>Gravedad</h2><div id="gGrav" class="grid"></div></div>
+        <div class="grupo"><h2>Energía</h2><div id="gEner" class="grid"></div></div>
+      </div>
 
       <h2>Gravedad</h2>
       <pre id="fGrav" class="formula"></pre>
 
-      <h2>Velocidad orbital circular</h2>
+      <h2>Velocidad orbital y de escape</h2>
       <pre id="fVorb" class="formula"></pre>
 
-      <h2>Velocidad de escape</h2>
-      <pre id="fVesc" class="formula"></pre>
+      <h2>Energía</h2>
+      <pre id="fEner" class="formula"></pre>
 
       <h2>Componentes de la velocidad</h2>
       <pre id="fTri" class="formula"></pre>
+
+      <h2>Paso a paso</h2>
+      <div id="paso" class="caja"></div>
     </section>
   </main>
   <script type="module" src="./src/main.js"></script>

@@ -58,3 +58,39 @@ export function derived(s) {
     theta: (Math.atan2(s.vy, s.vx) * 180) / Math.PI, // dirección de la velocidad
   };
 }
+
+// Elementos de la órbita, deducidos de la posición y la velocidad actuales.
+// Sirven para clasificar la trayectoria y para saber dónde están los ápsides.
+export function orbitalElements(s) {
+  const r = Math.hypot(s.x, s.y);
+  const v2 = s.vx * s.vx + s.vy * s.vy;
+  const rv = s.x * s.vx + s.y * s.vy;
+
+  // vector excentricidad:  e = ((v² - μ/r)·r_vec - (r·v)·v_vec) / μ
+  const c = v2 - MU / r;
+  const ex = (c * s.x - rv * s.vx) / MU;
+  const ey = (c * s.y - rv * s.vy) / MU;
+  const e = Math.hypot(ex, ey);
+
+  const energia = v2 / 2 - MU / r;
+  const a = e < 1 ? -MU / (2 * energia) : Infinity; // semieje mayor
+  const anguloPeriapsis = Math.atan2(ey, ex);
+
+  return {
+    e,
+    a,
+    energia,
+    anguloPeriapsis,
+    rPeri: e < 1 ? a * (1 - e) : (a === Infinity ? NaN : NaN),
+    rApo: e < 1 ? a * (1 + e) : NaN,
+    periodo: e < 1 ? 2 * Math.PI * Math.sqrt((a * a * a) / MU) : NaN,
+  };
+}
+
+// Clasificación cualitativa de la trayectoria (lo que el panel muestra como estado).
+export function clasificar(s) {
+  const { e } = orbitalElements(s);
+  if (e >= 1) return 'escape';
+  if (e < 0.02) return 'circular';
+  return 'eliptica';
+}
