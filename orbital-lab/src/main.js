@@ -1,7 +1,7 @@
 // Arranque de la aplicación: crea el juego de Phaser y conecta los controles.
 import Phaser from 'phaser';
 import { Lab, vista } from './scene.js';
-import { sim, reiniciar, limpiarTraza, darPaso } from './sim.js';
+import { sim, reiniciar, limpiarTraza, darPaso, ritmoParaUnaOrbita } from './sim.js';
 import { ocultarImpacto } from './panel.js';
 import { $ } from './util.js';
 
@@ -58,13 +58,44 @@ $('btnStep').addEventListener('click', () => {
   $('btnPause').textContent = 'CONTINUAR';
 });
 
-document.querySelectorAll('.speed').forEach((b) => {
-  b.addEventListener('click', () => {
-    sim.velocidadTiempo = parseFloat(b.dataset.speed);
-    document.querySelectorAll('.speed').forEach((o) => o.classList.toggle('active', o === b));
-  });
+// Ver una vuelta completa en unos 8 segundos: sólo cambia el ritmo de
+// reproducción, la física es exactamente la misma.
+$('btnOrbita').addEventListener('click', () => {
+  if (sim.fase === 'listo' || sim.fase === 'impacto') preparar(true);
+  const r = ritmoParaUnaOrbita(8);
+  if (!r) { avisar('Esta trayectoria no es cerrada: no hay una órbita que completar.'); return; }
+  ponerRitmo(redondearRitmo(r.ritmo));
+  limpiarTraza();
+  sim.corriendo = true;
+  $('btnPause').textContent = 'PAUSA';
+  avisar(`Una vuelta dura ${Math.round(r.periodo)} s (${(r.periodo / 60).toFixed(0)} min). Reproduciendo a ×${sim.velocidadTiempo}.`);
 });
-document.querySelector('.speed').classList.add('active');
+
+// se usa el ×N disponible más cercano, para que el botón de velocidad coincida
+function redondearRitmo(ritmo) {
+  const opciones = [...document.querySelectorAll('.speed')].map((b) => parseFloat(b.dataset.speed));
+  return opciones.reduce((a, b) => (Math.abs(b - ritmo) < Math.abs(a - ritmo) ? b : a));
+}
+
+function ponerRitmo(valor) {
+  sim.velocidadTiempo = valor;
+  document.querySelectorAll('.speed').forEach((b) =>
+    b.classList.toggle('active', parseFloat(b.dataset.speed) === valor));
+}
+
+let avisoId;
+function avisar(texto) {
+  const a = $('aviso');
+  a.textContent = texto;
+  a.classList.add('visible');
+  clearTimeout(avisoId);
+  avisoId = setTimeout(() => a.classList.remove('visible'), 4500);
+}
+
+document.querySelectorAll('.speed').forEach((b) => {
+  b.addEventListener('click', () => ponerRitmo(parseFloat(b.dataset.speed)));
+});
+ponerRitmo(1);
 
 // Cada experimento deja los valores a la vista y lanza.
 document.querySelectorAll('.preset').forEach((b) => {

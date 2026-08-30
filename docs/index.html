@@ -34,7 +34,7 @@ body {
 #app { display: flex; height: 100vh; }
 
 /* ---------------- izquierda: escena ---------------- */
-#left { flex: 1 1 68%; display: flex; flex-direction: column; min-width: 0; }
+#left { flex: 1 1 70%; display: flex; flex-direction: column; min-width: 0; }
 #escena { position: relative; flex: 1 1 auto; min-height: 0; }
 #game { position: absolute; inset: 0; }
 
@@ -116,7 +116,7 @@ button.active { border-color: var(--accent); color: var(--accent); background: #
 
 /* ---------------- derecha: matemática ---------------- */
 #right {
-  flex: 1 1 32%; min-width: 330px;
+  flex: 1 1 30%; min-width: 340px;
   border-left: 1px solid var(--line);
   background: var(--panel);
   padding: 16px 18px 30px;
@@ -164,6 +164,60 @@ table.paso .delta { color: var(--warn); }
   #right { border-left: none; border-top: 1px solid var(--line); min-width: 0; }
   .grupos { grid-template-columns: 1fr; }
 }
+
+/* ---------------- aviso flotante sobre la escena ---------------- */
+#aviso {
+  position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%);
+  margin: 0; padding: 8px 14px; max-width: 80%;
+  background: rgba(10,16,24,0.92); border: 1px solid var(--line); border-radius: 6px;
+  color: var(--text); font-size: 12px; text-align: center;
+  opacity: 0; transition: opacity 0.25s; pointer-events: none;
+}
+#aviso.visible { opacity: 1; }
+
+/* ---------------- panel: relato, fórmulas por pasos, triángulo ---------------- */
+.relato {
+  margin: 9px 0 12px; padding: 9px 12px;
+  background: var(--sunken); border-left: 2px solid var(--accent); border-radius: 0 5px 5px 0;
+  color: var(--text); font-size: 12px; line-height: 1.6;
+}
+.reloj { display: flex; justify-content: space-between; gap: 10px; color: var(--dim); font-size: 11.5px; }
+.reloj b { color: var(--text); }
+
+.paso-formula { display: flex; gap: 10px; align-items: baseline; padding: 1px 0; }
+.etq-paso {
+  flex: 0 0 76px; color: var(--dim); font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.6px; text-align: right;
+}
+.paso-formula code { font-family: var(--mono); font-size: 12.5px; word-break: break-word; }
+.paso-formula code.hl { color: var(--accent); font-weight: 700; }
+.paso-formula code.extra { color: var(--dim); font-size: 11.5px; }
+
+.grid .v.z { color: var(--dim); }
+.triangulo {
+  background: var(--sunken); border: 1px solid var(--line); border-radius: 5px;
+  padding: 6px; margin-bottom: 6px;
+}
+
+/* botón [?] junto a los títulos y nota larga del modelo */
+h2 .ayuda, .ayuda { display: inline; }
+.ayuda summary {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; margin-left: 6px; border-radius: 50%;
+  border: 1px solid var(--line); color: var(--dim);
+  font-size: 10px; cursor: pointer; list-style: none;
+}
+.ayuda summary::-webkit-details-marker { display: none; }
+.ayuda[open] summary { border-color: var(--accent); color: var(--accent); }
+.ayuda p, .ayuda-larga ul {
+  margin: 7px 0 0; padding: 9px 12px; text-transform: none; letter-spacing: 0;
+  background: var(--sunken); border: 1px solid var(--line); border-radius: 5px;
+  color: var(--dim); font-size: 11.5px; line-height: 1.6; font-weight: 400;
+}
+.ayuda-larga summary { color: var(--dim); font-size: 11.5px; cursor: pointer; }
+.ayuda-larga ul { padding-left: 28px; }
+.ayuda-larga li { margin: 3px 0; }
+.ayuda-larga code { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -172,6 +226,8 @@ table.paso .delta { color: var(--warn); }
     <section id="left">
       <div id="escena">
         <div id="game"></div>
+
+        <p id="aviso"></p>
 
         <!-- cartel de impacto, encima del canvas -->
         <div id="overlay" hidden>
@@ -214,13 +270,17 @@ table.paso .delta { color: var(--warn); }
               <button class="speed" data-speed="1">×1</button>
               <button class="speed" data-speed="10">×10</button>
               <button class="speed" data-speed="100">×100</button>
+              <button class="speed" data-speed="1000">×1000</button>
+              <button class="speed" data-speed="5000">×5000</button>
             </div>
+            <button id="btnOrbita">VER 1 ÓRBITA</button>
           </div>
         </div>
 
         <div class="inline checks">
-          <label><input id="ckVel" type="checkbox" checked /> vector velocidad</label>
-          <label><input id="ckGrav" type="checkbox" checked /> vector gravedad</label>
+          <label><input id="ckPos" type="checkbox" checked /> vector posición (r)</label>
+          <label><input id="ckVel" type="checkbox" checked /> vector velocidad (v)</label>
+          <label><input id="ckGrav" type="checkbox" checked /> vector gravedad (a)</label>
           <label><input id="ckAxes" type="checkbox" checked /> ejes X/Y</label>
           <label><input id="ckAyuda" type="checkbox" checked /> ayuda visual</label>
         </div>
@@ -239,33 +299,64 @@ table.paso .delta { color: var(--warn); }
     <section id="right">
       <header>
         <h1>Laboratorio Orbital</h1>
-        <p class="sub">Tierra · R = 6371 km · μ = 398600 km³/s² · t = <span id="outT">0</span> s</p>
+        <p class="sub">Modelo de dos cuerpos · Tierra: R = 6371 km · μ = 398600 km³/s²</p>
       </header>
 
+      <h2>¿Qué está pasando?</h2>
       <div id="estado" class="chip">⚪ LISTA PARA LANZAR</div>
-      <p id="detalleEstado" class="nota"></p>
-
-      <div class="grupos">
-        <div class="grupo"><h2>Posición</h2><div id="gPos" class="grid"></div></div>
-        <div class="grupo"><h2>Velocidad</h2><div id="gVel" class="grid"></div></div>
-        <div class="grupo"><h2>Gravedad</h2><div id="gGrav" class="grid"></div></div>
-        <div class="grupo"><h2>Energía</h2><div id="gEner" class="grid"></div></div>
+      <p id="relato" class="relato"></p>
+      <div class="reloj">
+        <span>tiempo físico simulado <b id="outT">0</b> s</span>
+        <span>reproducción <b id="outRitmo">×1</b></span>
       </div>
 
-      <h2>Gravedad</h2>
-      <pre id="fGrav" class="formula"></pre>
+      <h2>Sistema de coordenadas
+        <details class="ayuda"><summary>?</summary>
+          <p>Estamos usando un modelo 2D para simplificar la primera etapa del aprendizaje.
+          En una simulación espacial completa existiría también la coordenada Z, la profundidad
+          de la pantalla: hacia el observador o alejándose de él. Aquí toda la órbita ocurre en
+          un plano, así que Z = 0 en todo momento.</p>
+        </details>
+      </h2>
+      <div id="gPos" class="grid"></div>
+      <div id="fPos" class="formula"></div>
 
-      <h2>Velocidad orbital y de escape</h2>
-      <pre id="fVorb" class="formula"></pre>
+      <h2>Velocidad</h2>
+      <div id="gVel" class="grid"></div>
+      <div id="fVel" class="formula"></div>
+
+      <h2>Gravedad</h2>
+      <div id="fGrav" class="formula"></div>
+
+      <h2>Velocidad orbital circular</h2>
+      <div id="fVorb" class="formula"></div>
+
+      <h2>Velocidad de escape</h2>
+      <div id="fVesc" class="formula"></div>
 
       <h2>Energía</h2>
-      <pre id="fEner" class="formula"></pre>
+      <div id="fEner" class="formula"></div>
 
-      <h2>Componentes de la velocidad</h2>
-      <pre id="fTri" class="formula"></pre>
+      <h2>Seno y coseno</h2>
+      <div id="triangulo" class="triangulo"></div>
+      <div id="fTri" class="formula"></div>
 
       <h2>Paso a paso</h2>
       <div id="paso" class="caja"></div>
+
+      <h2>El modelo</h2>
+      <details class="ayuda-larga">
+        <summary>qué se simula y qué no</summary>
+        <ul>
+          <li>Dos cuerpos: la Tierra, fija en el origen, y la nave, un punto sin tamaño.</li>
+          <li>Gravedad newtoniana: <code>a = −μ/r³ · r</code> (vectores), integrada con Runge-Kutta 4.</li>
+          <li>Todo ocurre en un plano: Z = 0.</li>
+          <li>No hay Luna, Sol, atmósfera ni rotación terrestre en la física. La Tierra
+              gira en pantalla sólo para que se vea como un planeta.</li>
+          <li>El ×N acelera la reproducción, no la física: el tiempo simulado y las
+              fórmulas siguen siendo los mismos.</li>
+        </ul>
+      </details>
     </section>
   </main>
   <!-- Phaser 3 vive en el repositorio: la página no depende de ningún CDN -->
@@ -381,7 +472,7 @@ const sim = {
   s: initialState(7.67, 400, 90),
   t: 0,
   corriendo: false,
-  velocidadTiempo: 1,
+  velocidadTiempo: 1,   // ×N de reproducción: sólo acelera el reloj, no la física
   fase: 'listo',      // listo | cuenta | vuelo | impacto
   cuenta: 0,          // segundos que faltan de la cuenta regresiva
   motor: 0,           // segundos de llama del motor que quedan
@@ -449,14 +540,23 @@ function avanzarCuenta(dtReal) {
   }
 }
 
+// Paso de integración: lo bastante fino como para que la trayectoria no se
+// deforme, pero proporcional a la velocidad angular. Cerca de la Tierra la nave
+// barre ángulo rápido y el paso se achica; lejos puede ser mucho más grande.
+// Así ×1000 o ×5000 aceleran la reproducción sin tocar las leyes físicas.
+function pasoRecomendado() {
+  const r = Math.hypot(sim.s.x, sim.s.y);
+  const v = Math.hypot(sim.s.vx, sim.s.vy) || 1;
+  return Math.min(60, Math.max(0.5, 0.0015 * r / v));
+}
+
 // Avanza la física dtSim segundos, en pasos pequeños para no perder precisión.
 function avanzar(dtSim) {
   if (sim.fase === 'impacto') return;
-  const hMax = 2;
-  let restante = Math.min(dtSim, 600);
+  let restante = Math.min(dtSim, 20000);
 
   while (restante > 0) {
-    const h = Math.min(hMax, restante);
+    const h = Math.min(pasoRecomendado(), restante);
     const previo = sim.s;
     sim.s = step(sim.s, h);
     sim.t += h;
@@ -495,7 +595,8 @@ function registrarImpacto(previo, h) {
 
 function apuntarTraza(forzar) {
   const ult = sim.traza[sim.traza.length - 1];
-  if (forzar || !ult || Math.hypot(sim.s.x - ult.x, sim.s.y - ult.y) > 15) {
+  const paso = Math.max(15, Math.hypot(sim.s.x, sim.s.y) * 0.004);
+  if (forzar || !ult || Math.hypot(sim.s.x - ult.x, sim.s.y - ult.y) > paso) {
     sim.traza.push({ x: sim.s.x, y: sim.s.y });
     if (sim.traza.length > 6000) sim.traza.shift();
   }
@@ -516,11 +617,30 @@ function darPaso(dt = 10) {
   sim.paso = { antes, despues: foto(), dt };
 }
 
+// Cuánto hay que acelerar la reproducción para ver una vuelta completa en
+// `segundos` de reloj. Devuelve null si la trayectoria no es cerrada.
+function ritmoParaUnaOrbita(segundos = 8) {
+  const { periodo } = orbitalElements(sim.s);
+  if (!Number.isFinite(periodo)) return null;
+  return { periodo, ritmo: periodo / segundos };
+}
+
 // ===================== src/panel.js =====================
-// Panel derecho: estado físico, variables agrupadas y fórmulas con sus números.
+// Panel derecho: qué está pasando, las variables y las fórmulas paso a paso.
 
 // el 0 negativo (p. ej. una altura de -1e-9 al tocar el suelo) se muestra como 0
 const n = (x, d = 3) => (Number.isFinite(x) ? (Math.abs(x) < 5e-4 ? (0).toFixed(d) : x.toFixed(d)) : '—');
+
+// Una o dos frases sobre lo que la nave está haciendo ahora mismo.
+const RELATO = {
+  listo:    'Elegí velocidad, altura y ángulo. La flecha verde punteada muestra hacia dónde saldría la nave.',
+  cuenta:   'Motores encendidos. En un instante la nave queda sola con su velocidad y con la gravedad.',
+  circular: 'Tu nave tiene suficiente velocidad lateral para que, mientras cae hacia la Tierra, la superficie se curve alejándose de ella. Cae siempre, pero nunca llega.',
+  eliptica: 'La energía orbital es distinta a la de la órbita circular: la nave se acerca y se aleja de la Tierra. Va más rápido cerca y más lento lejos.',
+  escape:   'La energía orbital es suficiente para que la trayectoria no quede ligada a la Tierra: la gravedad la frena, pero nunca llega a detenerla.',
+  escapado: 'La nave ya está lejos y sigue alejándose. La gravedad se debilita con el cuadrado de la distancia, así que nunca la traerá de vuelta.',
+  impacto:  'La velocidad inicial no fue suficiente para mantener una trayectoria que evite la superficie terrestre.',
+};
 
 function renderPanel() {
   const s = sim.s;
@@ -530,104 +650,153 @@ function renderPanel() {
   const clave = estadoActual();
   const e = ESTADOS[clave];
 
-  // --- estado (lo primero que se lee)
+  // --- ¿qué está pasando?
   const chip = $('estado');
   chip.textContent = `${e.chip}  ${e.texto}`;
   chip.style.color = e.color;
   chip.style.borderColor = e.color + '66';
+  $('relato').textContent = RELATO[clave];
   $('outT').textContent = n(sim.t, 1);
+  $('outRitmo').textContent = '×' + sim.velocidadTiempo;
 
-  $('detalleEstado').textContent =
-    clave === 'impacto' ? `la nave tocó la superficie a ${n(sim.impacto.v, 3)} km/s`
-    : clave === 'circular' ? `e = ${n(el.e, 4)} · la distancia casi no cambia`
-    : clave === 'eliptica' ? `e = ${n(el.e, 3)} · entre ${Math.round(el.rPeri - R_PLANET)} y ${Math.round(el.rApo - R_PLANET)} km de altura`
-    : clave === 'escape' || clave === 'escapado' ? `e = ${n(el.e, 3)} ≥ 1 · energía positiva, no vuelve`
-    : 'elegí velocidad, altura y ángulo, y pulsá LANZAR';
-
-  // --- variables por grupos
+  // --- coordenadas
   $('gPos').innerHTML = filas([
-    ['x', `${n(s.x)} km`], ['y', `${n(s.y)} km`],
-    ['r', `${n(m.r)} km`], ['altura', `${n(m.h)} km`],
+    ['x', `${n(s.x)} km`],
+    ['y', `${n(s.y)} km`],
+    ['z', '0 km', 'z'],
   ]);
+  $('fPos').innerHTML = bloque(
+    'r = √(x² + y²)',
+    `r = √(${n(s.x, 1)}² + ${n(s.y, 1)}²)`,
+    `r = ${n(m.r)} km`,
+    `altura = r − R = ${n(m.r)} − ${R_PLANET} = ${n(m.h)} km`);
+
+  // --- velocidad
   $('gVel').innerHTML = filas([
-    ['vx', `${n(s.vx, 4)} km/s`], ['vy', `${n(s.vy, 4)} km/s`],
-    ['|v|', `${n(m.v, 4)} km/s`], ['θ', `${n(theta, 1)}°`],
+    ['vx', `${n(s.vx, 4)} km/s`],
+    ['vy', `${n(s.vy, 4)} km/s`],
+    ['vz', '0 km/s', 'z'],
   ]);
-  $('gGrav').innerHTML = filas([
-    ['a', `${m.a.toFixed(6)} km/s²`], ['', `${n(m.a * 1000, 3)} m/s²`],
-  ]);
-  $('gEner').innerHTML = filas([
-    ['E', `${n(m.energia, 3)} km²/s²`],
-    ['', m.energia < 0 ? 'E < 0 → órbita ligada' : 'E ≥ 0 → escapa'],
-  ]);
+  $('fVel').innerHTML = bloque(
+    '|v| = √(vx² + vy²)',
+    `|v| = √(${n(s.vx, 3)}² + ${n(s.vy, 3)}²)`,
+    `|v| = ${n(m.v, 4)} km/s`);
 
-  // --- fórmulas con los valores sustituidos
-  $('fGrav').innerHTML =
-`a = μ / r²
-a = ${MU} / ${n(m.r)}²
-a ≈ <span class="hl">${m.a.toFixed(6)} km/s²</span>  ≈  <span class="hl">${n(m.a * 1000, 3)} m/s²</span>`;
+  // --- gravedad
+  $('fGrav').innerHTML = bloque(
+    'a = μ / r²',
+    `a = ${MU} / ${n(m.r)}²`,
+    `a = ${m.a.toFixed(6)} km/s²`,
+    `a = ${n(m.a * 1000, 3)} m/s²`);
 
-  $('fVorb').innerHTML =
-`v = √(μ / r)
-v = √(${MU} / ${n(m.r)})
-v ≈ <span class="hl">${n(m.vCirc, 4)} km/s</span>   (circular a esta altura)
+  // --- velocidad orbital circular y de escape
+  $('fVorb').innerHTML = bloque(
+    'v = √(μ / r)',
+    `v = √(${MU} / ${n(m.r)})`,
+    `v = ${n(m.vCirc, 4)} km/s`,
+    `la nave va a ${n(m.v, 4)} km/s → ${comparar(m.v, m.vCirc, m.vEsc)}`);
 
-v_esc = √(2μ / r) ≈ <span class="hl">${n(m.vEsc, 4)} km/s</span>
-velocidad actual: <span class="hl">${n(m.v, 4)} km/s</span> → ${comparar(m.v, m.vCirc, m.vEsc)}`;
+  $('fVesc').innerHTML = bloque(
+    'v_esc = √(2μ / r)',
+    `v_esc = √(2 · ${MU} / ${n(m.r)})`,
+    `v_esc = ${n(m.vEsc, 4)} km/s`);
 
-  $('fEner').innerHTML =
-`E = v² / 2 − μ / r
-E = ${n(m.v, 4)}² / 2 − ${MU} / ${n(m.r)}
-E ≈ <span class="hl">${n(m.energia, 3)} km²/s²</span>`;
+  $('fEner').innerHTML = bloque(
+    'E = v² / 2 − μ / r',
+    `E = ${n(m.v, 4)}² / 2 − ${MU} / ${n(m.r)}`,
+    `E = ${n(m.energia, 3)} km²/s²`,
+    m.energia < 0 ? 'E < 0 → la órbita es cerrada' : 'E ≥ 0 → la trayectoria es abierta: escapa');
 
-  $('fTri').innerHTML =
-`   Vy
-   ↑
-   |
-   |\\
-   |  \\  V
-   |    \\
-   | θ    \\
-   +--------→
-       Vx
-
-V  = ${n(m.v, 4)} km/s      θ = ${n(theta, 1)}°
-Vx = V cos(θ) = ${n(m.v, 4)} · cos(${n(theta, 1)}°) = <span class="hl">${n(s.vx, 4)} km/s</span>
-Vy = V sin(θ) = ${n(m.v, 4)} · sin(${n(theta, 1)}°) = <span class="hl">${n(s.vy, 4)} km/s</span>`;
+  // --- seno y coseno, dibujados con la velocidad real de la nave
+  $('triangulo').innerHTML = triangulo(m.v, theta, s.vx, s.vy);
+  $('fTri').innerHTML = bloque(
+    'Vx = V cos(θ)   ·   Vy = V sin(θ)',
+    `Vx = ${n(m.v, 3)} · cos(${n(theta, 1)}°)     Vy = ${n(m.v, 3)} · sin(${n(theta, 1)}°)`,
+    `Vx = ${n(s.vx, 4)} km/s     Vy = ${n(s.vy, 4)} km/s`,
+    'θ se mide desde el eje X, girando hacia el eje Y');
 
   renderPaso();
+}
+
+// Bloque de fórmula en cuatro renglones: fórmula, sustitución, resultado y una
+// lectura en otras unidades o una conclusión.
+function bloque(formula, sustitucion, resultado, extra) {
+  return `<div class="paso-formula"><span class="etq-paso">fórmula</span><code>${formula}</code></div>
+<div class="paso-formula"><span class="etq-paso">sustitución</span><code>${sustitucion}</code></div>
+<div class="paso-formula"><span class="etq-paso">resultado</span><code class="hl">${resultado}</code></div>` +
+  (extra ? `<div class="paso-formula"><span class="etq-paso"></span><code class="extra">${extra}</code></div>` : '');
+}
+
+// Triángulo rectángulo de la velocidad: cateto Vx, cateto Vy, hipotenusa V.
+// El origen va en el centro para que los cuatro cuadrantes se vean igual de bien.
+function triangulo(v, theta, vx, vy) {
+  const W = 280, H = 170, ox = W / 2, oy = H / 2, L = 58;
+  const rad = (theta * Math.PI) / 180;
+  const ex = ox + Math.cos(rad) * L;   // punta de V
+  const ey = oy - Math.sin(rad) * L;   // en pantalla el eje Y crece hacia abajo
+  const largo = theta > 180 ? 1 : 0;   // arco mayor cuando pasa media vuelta
+  const arcoX = ox + Math.cos(rad) * 20, arcoY = oy - Math.sin(rad) * 20;
+  const derecha = Math.cos(rad) >= 0, arriba = Math.sin(rad) >= 0;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img"
+    aria-label="Triángulo de la velocidad: Vx ${vx.toFixed(2)}, Vy ${vy.toFixed(2)}, ángulo ${theta.toFixed(0)} grados">
+    <line x1="8" y1="${oy}" x2="${W - 8}" y2="${oy}" stroke="#2f3b4c"/>
+    <line x1="${ox}" y1="8" x2="${ox}" y2="${H - 8}" stroke="#2f3b4c"/>
+    <text x="${W - 14}" y="${oy - 6}" fill="#5b6b7f" font-size="10">X</text>
+    <text x="${ox + 6}" y="14" fill="#5b6b7f" font-size="10">Y</text>
+
+    <path d="M ${ox + 20} ${oy} A 20 20 0 ${largo} 0 ${arcoX} ${arcoY}"
+          fill="none" stroke="#ffd479" stroke-width="1.5"/>
+    <text x="${ox + Math.cos(rad / 2) * 34}" y="${oy - Math.sin(rad / 2) * 34 + 4}" fill="#ffd479"
+          font-size="11" text-anchor="middle">θ ${theta.toFixed(0)}°</text>
+
+    <line x1="${ox}" y1="${oy}" x2="${ex}" y2="${oy}" stroke="#6fd3ff" stroke-width="2.5"/>
+    <line x1="${ex}" y1="${oy}" x2="${ex}" y2="${ey}" stroke="#4ade80" stroke-width="2.5" stroke-dasharray="4 3"/>
+    <line x1="${ox}" y1="${oy}" x2="${ex}" y2="${ey}" stroke="#ffffff" stroke-width="2.5"/>
+    <circle cx="${ex}" cy="${ey}" r="4" fill="#ffffff"/>
+
+    <text x="${(ox + ex) / 2}" y="${oy + (arriba ? 15 : -7)}" fill="#6fd3ff" font-size="11"
+          text-anchor="middle">Vx ${vx.toFixed(2)}</text>
+    <text x="${ex + (derecha ? 8 : -8)}" y="${(oy + ey) / 2 + 4}" fill="#4ade80" font-size="11"
+          text-anchor="${derecha ? 'start' : 'end'}">Vy ${vy.toFixed(2)}</text>
+    <text x="${ox + Math.cos(rad) * (L + 16)}" y="${oy - Math.sin(rad) * (L + 16) + 4}" fill="#ffffff"
+          font-size="11" text-anchor="middle">V ${v.toFixed(2)}</text>
+  </svg>`;
 }
 
 // Modo paso a paso: qué había antes del paso y qué hay después.
 function renderPaso() {
   const caja = $('paso');
-  if (!sim.paso) { caja.innerHTML = '<p class="nota">Pausá la simulación y pulsá PASO: acá vas a ver qué cambió en ese intervalo.</p>'; return; }
+  if (!sim.paso) {
+    caja.innerHTML = '<p class="nota">Pausá la simulación y pulsá PASO: acá vas a ver qué cambió en ese intervalo.</p>';
+    return;
+  }
   const { antes, despues, dt } = sim.paso;
   const fila = (etq, a, b, u, d = 4) =>
     `<tr><td>${etq}</td><td>${n(a, d)}</td><td>→</td><td class="hl">${n(b, d)}</td><td>${u}</td>
      <td class="delta">${(b - a >= 0 ? '+' : '') + n(b - a, d)}</td></tr>`;
   caja.innerHTML =
-    `<p class="nota">Un paso de <b>${dt} s</b>: la computadora usó la aceleración para corregir la velocidad, y la velocidad para mover la posición.</p>
+    `<p class="nota">Un paso de <b>${dt} s</b>: con la aceleración se corrige la velocidad, y con la velocidad se mueve la posición.</p>
      <table class="paso">
        <tr><th></th><th>antes</th><th></th><th>después</th><th></th><th>Δ</th></tr>
        ${fila('x', antes.x, despues.x, 'km', 2)}
        ${fila('y', antes.y, despues.y, 'km', 2)}
+       ${fila('r', antes.r, despues.r, 'km', 2)}
        ${fila('vx', antes.vx, despues.vx, 'km/s')}
        ${fila('vy', antes.vy, despues.vy, 'km/s')}
-       ${fila('r', antes.r, despues.r, 'km', 2)}
        ${fila('|v|', antes.v, despues.v, 'km/s')}
        ${fila('a', antes.a * 1000, despues.a * 1000, 'm/s²', 4)}
      </table>`;
 }
 
 function filas(pares) {
-  return pares.map(([k, v]) => `<div class="k">${k}</div><div class="v">${v}</div>`).join('');
+  return pares.map(([k, v, clase]) =>
+    `<div class="k">${k}</div><div class="v ${clase || ''}">${v}</div>`).join('');
 }
 
 function comparar(v, vCirc, vEsc) {
   if (v >= vEsc) return 'supera la de escape';
   if (Math.abs(v - vCirc) < 0.02) return 'casi exactamente la circular';
-  return v < vCirc ? 'menor que la circular (cae hacia adentro)' : 'mayor que la circular (se estira hacia afuera)';
+  return v < vCirc ? 'menos que la circular: cae hacia adentro' : 'más que la circular: se estira hacia afuera';
 }
 
 // --- cartel de impacto sobre la escena
@@ -774,10 +943,11 @@ function texturaSombra(scene) {
 }
 
 function texturaAtmosfera(scene) {
-  const S = 640, c = S / 2, R = 250 * (S / 512);
+  // El disco del planeta ocupa R dentro de la textura y el halo llega a R*1.24;
+  // el canvas es bastante más grande que eso, si no el degradado se corta contra
+  // el borde y el blend aditivo dibuja un rectángulo en vez de un halo.
+  const S = 640, c = S / 2, R = 200;
   const ctx = scene.textures.createCanvas('atmosfera', S, S).getContext();
-  // el halo se recorta a un círculo: fuera de él el canvas queda completamente
-  // vacío, si no el blend aditivo deja un rectángulo azulado alrededor
   const halo = ctx.createRadialGradient(c, c, R * 0.90, c, c, R * 1.24);
   halo.addColorStop(0, 'rgba(110,200,255,0.00)');
   halo.addColorStop(0.35, 'rgba(110,200,255,0.42)');
@@ -789,6 +959,9 @@ function texturaAtmosfera(scene) {
   ctx.restore();
   scene.textures.get('atmosfera').refresh();
 }
+
+// cuánto mide la textura de atmósfera respecto del diámetro del planeta
+const FACTOR_ATMOSFERA = 640 / (2 * 200);
 
 function texturaEstrellas(scene, key, cantidad, brillo) {
   const S = 512;
@@ -887,15 +1060,31 @@ class Lab extends Phaser.Scene {
     this.nave = this.add.image(0, 0, 'nave').setDepth(5);
 
     const fuente = { fontFamily: '"JetBrains Mono", monospace', fontSize: '13px' };
-    this.txtEstado = this.add.text(14, 12, '', { ...fuente, fontSize: '15px', color: '#d7e0ea' }).setDepth(20);
+
+    // HUD: los datos que hay que mirar sin apartar la vista de la nave
+    this.gHud = this.add.graphics().setDepth(18);
+    this.hudEtiquetas = this.add.text(0, 0, '', { ...fuente, color: '#8b98a8', lineSpacing: 5 }).setDepth(19);
+    this.hudValores = this.add.text(0, 0, '', { ...fuente, color: '#dce5ef', lineSpacing: 5 }).setDepth(19).setOrigin(1, 0);
+    this.txtEstado = this.add.text(0, 0, '', { ...fuente, fontSize: '14px', color: '#d7e0ea' }).setDepth(19);
+
+    // gizmo de ejes: X, Y y la Z que en este modelo 2D vale siempre 0
+    this.gGizmo = this.add.graphics().setDepth(18);
+    this.gzX = this.add.text(0, 0, 'X', { ...fuente, fontSize: '12px', color: '#8b98a8' }).setDepth(19).setOrigin(0, 0.5);
+    this.gzY = this.add.text(0, 0, 'Y', { ...fuente, fontSize: '12px', color: '#8b98a8' }).setDepth(19).setOrigin(0.5, 1);
+    this.gzZ = this.add.text(0, 0, 'Z = 0', { ...fuente, fontSize: '11px', color: '#6fd3ff' }).setDepth(19).setOrigin(0, 0.5);
+    // junto a cada flecha va sólo su nombre; los números están en el HUD
+    this.txtPos = this.add.text(0, 0, 'r', { ...fuente, fontSize: '15px', color: '#b78bff' })
+      .setDepth(20).setOrigin(0.5).setFontStyle('bold');
     this.txtZoom = this.add.text(0, 12, '', { ...fuente, color: '#8b98a8' }).setDepth(20).setOrigin(1, 0);
     this.txtEscala = this.add.text(0, 30, '', { ...fuente, color: '#8b98a8' }).setDepth(20).setOrigin(1, 0);
     this.txtAyuda = this.add.text(14, 0, '', { ...fuente, color: '#8b98a8', lineSpacing: 3 }).setDepth(20).setOrigin(0, 1);
     this.txtCuenta = this.add.text(0, 0, '', { ...fuente, fontSize: '96px', color: '#ffd479' }).setDepth(30).setOrigin(0.5);
     this.txtPeri = this.add.text(0, 0, 'PERIAPSIS', { ...fuente, fontSize: '11px', color: '#ffb26f' }).setDepth(20).setOrigin(0.5).setVisible(false);
     this.txtApo = this.add.text(0, 0, 'APOAPSIS', { ...fuente, fontSize: '11px', color: '#6fd3ff' }).setDepth(20).setOrigin(0.5).setVisible(false);
-    this.txtVel = this.add.text(0, 0, 'V', { ...fuente, fontSize: '12px', color: '#4ade80' }).setDepth(20);
-    this.txtGrav = this.add.text(0, 0, 'g', { ...fuente, fontSize: '12px', color: '#ff7a7a' }).setDepth(20);
+    this.txtVel = this.add.text(0, 0, 'v', { ...fuente, fontSize: '15px', color: '#4ade80' })
+      .setDepth(20).setOrigin(0.5).setFontStyle('bold');
+    this.txtGrav = this.add.text(0, 0, 'a', { ...fuente, fontSize: '15px', color: '#ff7a7a' })
+      .setDepth(20).setOrigin(0.5).setFontStyle('bold');
     this.txtEjeX = this.add.text(0, 0, 'X', { ...fuente, fontSize: '12px', color: '#5b6b7f' }).setDepth(20);
     this.txtEjeY = this.add.text(0, 0, 'Y', { ...fuente, fontSize: '12px', color: '#5b6b7f' }).setDepth(20);
 
@@ -968,7 +1157,8 @@ class Lab extends Phaser.Scene {
     this.superficie.setPosition(cx, cy).setDisplaySize(dPlaneta, dPlaneta)
       .setRotation(this.tiempoVida * 0.012);
     this.sombra.setPosition(cx, cy).setDisplaySize(dPlaneta, dPlaneta);
-    this.atmosfera.setPosition(cx, cy).setDisplaySize(dPlaneta * 1.28, dPlaneta * 1.28);
+    this.atmosfera.setPosition(cx, cy)
+      .setDisplaySize(dPlaneta * FACTOR_ATMOSFERA, dPlaneta * FACTOR_ATMOSFERA);
 
     const g = this.g;
     g.clear();
@@ -1019,8 +1209,18 @@ class Lab extends Phaser.Scene {
       this.txtApo.setText(`APOAPSIS ${Math.round(el.rApo - R_PLANET)} km`);
     } else { this.txtPeri.setVisible(false); this.txtApo.setVisible(false); }
 
-    // --- nave: posición y rumbo salen directo de la física
+    // --- vector posición: del centro de la Tierra a la nave
     const nx = px(sim.s.x), ny = py(sim.s.y);
+    if ($('ckPos').checked && sim.fase !== 'impacto') {
+      this.flecha(g, cx, cy, nx, ny, 0xb78bff, false);
+      // r y a caen sobre la misma recta, así que se rotulan a lados opuestos:
+      // r cerca de la Tierra y por un lado, a junto a la nave y por el otro
+      const dx = nx - cx, dy = ny - cy, largo = Math.hypot(dx, dy) || 1;
+      this.txtPos.setVisible(true)
+        .setPosition(cx + dx * 0.35 - (dy / largo) * 16, cy + dy * 0.35 + (dx / largo) * 16);
+    } else this.txtPos.setVisible(false);
+
+    // --- nave: posición y rumbo salen directo de la física
     const v = Math.hypot(sim.s.vx, sim.s.vy);
     const rumbo = Math.atan2(-sim.s.vy, sim.s.vx);
     const visible = sim.fase !== 'impacto';
@@ -1041,7 +1241,7 @@ class Lab extends Phaser.Scene {
       const L = Phaser.Math.Clamp(v * 11, 30, 150);
       const ex = nx + (sim.s.vx / v) * L, ey = ny - (sim.s.vy / v) * L;
       this.flecha(g, nx, ny, ex, ey, 0x4ade80, sim.fase === 'listo');
-      this.txtVel.setPosition(ex + 6, ey - 14).setText(`V ${v.toFixed(2)} km/s`).setVisible(true);
+      this.txtVel.setPosition(ex + (sim.s.vx >= 0 ? 12 : -12), ey - 12).setVisible(true);
     } else this.txtVel.setVisible(false);
 
     const { ax, ay } = accel(sim.s.x, sim.s.y);
@@ -1050,13 +1250,14 @@ class Lab extends Phaser.Scene {
       const L = Phaser.Math.Clamp(a * 7000, 28, 130);
       const ex = nx + (ax / a) * L, ey = ny - (ay / a) * L;
       this.flecha(g, nx, ny, ex, ey, 0xff7a7a, false);
-      this.txtGrav.setPosition(ex + 6, ey + 4).setText(`g ${(a * 1000).toFixed(2)} m/s²`).setVisible(true);
+      const px2 = -(ey - ny) / L, py2 = (ex - nx) / L;   // perpendicular unitaria
+      this.txtGrav.setPosition(ex - px2 * 15, ey - py2 * 15).setVisible(true);
     } else this.txtGrav.setVisible(false);
 
     // --- carteles
     const clave = estadoActual();
     const e = ESTADOS[clave];
-    this.txtEstado.setText(`${e.chip}  ${e.texto}`).setColor(e.color);
+    this.dibujarHud(clave, e, derived(sim.s));
 
     const zoom = k / vista.escalaRef;
     this.txtZoom.setPosition(w - 14, 12).setText(`ZOOM ×${zoom >= 1 ? zoom.toFixed(1) : zoom.toFixed(2)}`);
@@ -1074,16 +1275,70 @@ class Lab extends Phaser.Scene {
         escapado: '= TRAYECTORIA CURVA ↘  la gravedad ya no alcanza a frenarla',
         impacto:  '= TRAYECTORIA CURVA ↘  faltó velocidad de costado: cayó',
       }[clave] || '= TRAYECTORIA CURVA ↘  la suma de las dos flechas';
-      this.txtAyuda.setPosition(14, h - 12).setVisible(true).setText(
+      this.txtAyuda.setPosition(14, h - 14).setVisible(true).setText(
         'VELOCIDAD →   la nave avanza de costado\n' +
         '+ GRAVEDAD ↓  la Tierra tira de ella\n' + cierre);
     } else this.txtAyuda.setVisible(false);
+
+    this.dibujarGizmo(w, h);
 
     this.txtCuenta.setPosition(cx, cy - Math.min(w, h) * 0.28);
     if (sim.fase === 'cuenta') {
       const n = Math.ceil(sim.cuenta);
       this.txtCuenta.setText(n > 0 ? String(n) : '🚀').setVisible(true).setAlpha(1 - (Math.ceil(sim.cuenta) - sim.cuenta));
     } else this.txtCuenta.setVisible(false);
+  }
+
+  // Panel de datos dentro de la escena, para no tener que mirar a la derecha.
+  dibujarHud(clave, estado, m) {
+    const filas = [
+      ['DISTANCIA r', `${m.r.toFixed(1)} km`],
+      ['ALTURA', `${m.h.toFixed(1)} km`],
+      ['VELOCIDAD', `${m.v.toFixed(3)} km/s`],
+      ['GRAVEDAD', `${(m.a * 1000).toFixed(3)} m/s²`],
+      ['TIEMPO FÍSICO', `${sim.t.toFixed(1)} s`],
+      ['REPRODUCCIÓN', `×${sim.velocidadTiempo}`],
+    ];
+    const x = 14, y = 12, ancho = 250, alto = 26 + filas.length * 19 + 24;
+
+    this.gHud.clear();
+    this.gHud.fillStyle(0x0a1018, 0.82).fillRoundedRect(x, y, ancho, alto, 6);
+    this.gHud.lineStyle(1, 0x24334a, 1).strokeRoundedRect(x, y, ancho, alto, 6);
+
+    this.hudEtiquetas.setPosition(x + 12, y + 12).setText(filas.map((f) => f[0]).join('\n'));
+    this.hudValores.setPosition(x + ancho - 12, y + 12).setText(filas.map((f) => f[1]).join('\n'));
+
+    const yEstado = y + 12 + filas.length * 19 + 6;
+    this.gHud.lineStyle(1, 0x24334a, 1);
+    this.gHud.beginPath();
+    this.gHud.moveTo(x + 12, yEstado - 2); this.gHud.lineTo(x + ancho - 12, yEstado - 2);
+    this.gHud.strokePath();
+    this.txtEstado.setPosition(x + 12, yEstado + 4).setText(`${estado.chip} ${estado.texto}`).setColor(estado.color);
+  }
+
+  // X, Y y el recordatorio de que la tercera coordenada existe y aquí vale 0.
+  dibujarGizmo(w, h) {
+    const x = w - 100, y = h - 70, L = 46;
+    const g = this.gGizmo;
+    g.clear();
+    g.lineStyle(2, 0x8b98a8, 1);
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + L, y); g.strokePath();          // X
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - L); g.strokePath();          // Y
+    for (const [dx, dy] of [[L, 0], [0, -L]]) {                                 // puntas
+      const ang = Math.atan2(dy, dx);
+      g.beginPath();
+      g.moveTo(x + dx, y + dy);
+      g.lineTo(x + dx - 8 * Math.cos(ang - 0.4), y + dy - 8 * Math.sin(ang - 0.4));
+      g.lineTo(x + dx - 8 * Math.cos(ang + 0.4), y + dy - 8 * Math.sin(ang + 0.4));
+      g.closePath(); g.fillStyle(0x8b98a8, 1); g.fillPath();
+    }
+    // Z sale de la pantalla hacia quien mira: se dibuja como ⊙
+    g.lineStyle(1.5, 0x6fd3ff, 1);
+    g.strokeCircle(x, y, 6);
+    g.fillStyle(0x6fd3ff, 1).fillCircle(x, y, 2);
+    this.gzX.setPosition(x + L + 6, y);
+    this.gzY.setPosition(x, y - L - 6);
+    this.gzZ.setPosition(x + 12, y + 14);
   }
 
   flecha(g, x1, y1, x2, y2, color, punteada) {
@@ -1165,13 +1420,44 @@ $('btnStep').addEventListener('click', () => {
   $('btnPause').textContent = 'CONTINUAR';
 });
 
-document.querySelectorAll('.speed').forEach((b) => {
-  b.addEventListener('click', () => {
-    sim.velocidadTiempo = parseFloat(b.dataset.speed);
-    document.querySelectorAll('.speed').forEach((o) => o.classList.toggle('active', o === b));
-  });
+// Ver una vuelta completa en unos 8 segundos: sólo cambia el ritmo de
+// reproducción, la física es exactamente la misma.
+$('btnOrbita').addEventListener('click', () => {
+  if (sim.fase === 'listo' || sim.fase === 'impacto') preparar(true);
+  const r = ritmoParaUnaOrbita(8);
+  if (!r) { avisar('Esta trayectoria no es cerrada: no hay una órbita que completar.'); return; }
+  ponerRitmo(redondearRitmo(r.ritmo));
+  limpiarTraza();
+  sim.corriendo = true;
+  $('btnPause').textContent = 'PAUSA';
+  avisar(`Una vuelta dura ${Math.round(r.periodo)} s (${(r.periodo / 60).toFixed(0)} min). Reproduciendo a ×${sim.velocidadTiempo}.`);
 });
-document.querySelector('.speed').classList.add('active');
+
+// se usa el ×N disponible más cercano, para que el botón de velocidad coincida
+function redondearRitmo(ritmo) {
+  const opciones = [...document.querySelectorAll('.speed')].map((b) => parseFloat(b.dataset.speed));
+  return opciones.reduce((a, b) => (Math.abs(b - ritmo) < Math.abs(a - ritmo) ? b : a));
+}
+
+function ponerRitmo(valor) {
+  sim.velocidadTiempo = valor;
+  document.querySelectorAll('.speed').forEach((b) =>
+    b.classList.toggle('active', parseFloat(b.dataset.speed) === valor));
+}
+
+let avisoId;
+function avisar(texto) {
+  const a = $('aviso');
+  a.textContent = texto;
+  a.classList.add('visible');
+  clearTimeout(avisoId);
+  avisoId = setTimeout(() => a.classList.remove('visible'), 4500);
+}
+
+document.querySelectorAll('.speed').forEach((b) => {
+  b.addEventListener('click', () => ponerRitmo(parseFloat(b.dataset.speed)));
+});
+ponerRitmo(1);
 
 // Cada experimento deja los valores a la vista y lanza.
 document.querySelectorAll('.preset').forEach((b) => {

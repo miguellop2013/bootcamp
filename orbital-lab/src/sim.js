@@ -6,7 +6,7 @@ export const sim = {
   s: initialState(7.67, 400, 90),
   t: 0,
   corriendo: false,
-  velocidadTiempo: 1,
+  velocidadTiempo: 1,   // ×N de reproducción: sólo acelera el reloj, no la física
   fase: 'listo',      // listo | cuenta | vuelo | impacto
   cuenta: 0,          // segundos que faltan de la cuenta regresiva
   motor: 0,           // segundos de llama del motor que quedan
@@ -74,14 +74,23 @@ export function avanzarCuenta(dtReal) {
   }
 }
 
+// Paso de integración: lo bastante fino como para que la trayectoria no se
+// deforme, pero proporcional a la velocidad angular. Cerca de la Tierra la nave
+// barre ángulo rápido y el paso se achica; lejos puede ser mucho más grande.
+// Así ×1000 o ×5000 aceleran la reproducción sin tocar las leyes físicas.
+function pasoRecomendado() {
+  const r = Math.hypot(sim.s.x, sim.s.y);
+  const v = Math.hypot(sim.s.vx, sim.s.vy) || 1;
+  return Math.min(60, Math.max(0.5, 0.0015 * r / v));
+}
+
 // Avanza la física dtSim segundos, en pasos pequeños para no perder precisión.
 export function avanzar(dtSim) {
   if (sim.fase === 'impacto') return;
-  const hMax = 2;
-  let restante = Math.min(dtSim, 600);
+  let restante = Math.min(dtSim, 20000);
 
   while (restante > 0) {
-    const h = Math.min(hMax, restante);
+    const h = Math.min(pasoRecomendado(), restante);
     const previo = sim.s;
     sim.s = step(sim.s, h);
     sim.t += h;
@@ -120,7 +129,8 @@ function registrarImpacto(previo, h) {
 
 function apuntarTraza(forzar) {
   const ult = sim.traza[sim.traza.length - 1];
-  if (forzar || !ult || Math.hypot(sim.s.x - ult.x, sim.s.y - ult.y) > 15) {
+  const paso = Math.max(15, Math.hypot(sim.s.x, sim.s.y) * 0.004);
+  if (forzar || !ult || Math.hypot(sim.s.x - ult.x, sim.s.y - ult.y) > paso) {
     sim.traza.push({ x: sim.s.x, y: sim.s.y });
     if (sim.traza.length > 6000) sim.traza.shift();
   }
@@ -139,4 +149,12 @@ export function darPaso(dt = 10) {
   sim.corriendo = false;
   avanzar(dt);
   sim.paso = { antes, despues: foto(), dt };
+}
+
+// Cuánto hay que acelerar la reproducción para ver una vuelta completa en
+// `segundos` de reloj. Devuelve null si la trayectoria no es cerrada.
+export function ritmoParaUnaOrbita(segundos = 8) {
+  const { periodo } = orbitalElements(sim.s);
+  if (!Number.isFinite(periodo)) return null;
+  return { periodo, ritmo: periodo / segundos };
 }

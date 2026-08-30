@@ -1,7 +1,7 @@
 // Escena de Phaser: dibuja el espacio, la Tierra, la nave y la trayectoria.
 // Aquí no hay física: todo lo que se ve sale de la posición que calcula sim.js.
 import Phaser from 'phaser';
-import { R_PLANET, accel, orbitalElements } from './physics.js';
+import { R_PLANET, accel, derived, orbitalElements } from './physics.js';
 import { sim, ESTADOS, estadoActual, avanzar, avanzarCuenta } from './sim.js';
 import { renderPanel, mostrarImpacto, ocultarImpacto } from './panel.js';
 import { $ } from './util.js';
@@ -134,10 +134,11 @@ function texturaSombra(scene) {
 }
 
 function texturaAtmosfera(scene) {
-  const S = 640, c = S / 2, R = 250 * (S / 512);
+  // El disco del planeta ocupa R dentro de la textura y el halo llega a R*1.24;
+  // el canvas es bastante más grande que eso, si no el degradado se corta contra
+  // el borde y el blend aditivo dibuja un rectángulo en vez de un halo.
+  const S = 640, c = S / 2, R = 200;
   const ctx = scene.textures.createCanvas('atmosfera', S, S).getContext();
-  // el halo se recorta a un círculo: fuera de él el canvas queda completamente
-  // vacío, si no el blend aditivo deja un rectángulo azulado alrededor
   const halo = ctx.createRadialGradient(c, c, R * 0.90, c, c, R * 1.24);
   halo.addColorStop(0, 'rgba(110,200,255,0.00)');
   halo.addColorStop(0.35, 'rgba(110,200,255,0.42)');
@@ -149,6 +150,9 @@ function texturaAtmosfera(scene) {
   ctx.restore();
   scene.textures.get('atmosfera').refresh();
 }
+
+// cuánto mide la textura de atmósfera respecto del diámetro del planeta
+const FACTOR_ATMOSFERA = 640 / (2 * 200);
 
 function texturaEstrellas(scene, key, cantidad, brillo) {
   const S = 512;
@@ -247,15 +251,31 @@ export class Lab extends Phaser.Scene {
     this.nave = this.add.image(0, 0, 'nave').setDepth(5);
 
     const fuente = { fontFamily: '"JetBrains Mono", monospace', fontSize: '13px' };
-    this.txtEstado = this.add.text(14, 12, '', { ...fuente, fontSize: '15px', color: '#d7e0ea' }).setDepth(20);
+
+    // HUD: los datos que hay que mirar sin apartar la vista de la nave
+    this.gHud = this.add.graphics().setDepth(18);
+    this.hudEtiquetas = this.add.text(0, 0, '', { ...fuente, color: '#8b98a8', lineSpacing: 5 }).setDepth(19);
+    this.hudValores = this.add.text(0, 0, '', { ...fuente, color: '#dce5ef', lineSpacing: 5 }).setDepth(19).setOrigin(1, 0);
+    this.txtEstado = this.add.text(0, 0, '', { ...fuente, fontSize: '14px', color: '#d7e0ea' }).setDepth(19);
+
+    // gizmo de ejes: X, Y y la Z que en este modelo 2D vale siempre 0
+    this.gGizmo = this.add.graphics().setDepth(18);
+    this.gzX = this.add.text(0, 0, 'X', { ...fuente, fontSize: '12px', color: '#8b98a8' }).setDepth(19).setOrigin(0, 0.5);
+    this.gzY = this.add.text(0, 0, 'Y', { ...fuente, fontSize: '12px', color: '#8b98a8' }).setDepth(19).setOrigin(0.5, 1);
+    this.gzZ = this.add.text(0, 0, 'Z = 0', { ...fuente, fontSize: '11px', color: '#6fd3ff' }).setDepth(19).setOrigin(0, 0.5);
+    // junto a cada flecha va sólo su nombre; los números están en el HUD
+    this.txtPos = this.add.text(0, 0, 'r', { ...fuente, fontSize: '15px', color: '#b78bff' })
+      .setDepth(20).setOrigin(0.5).setFontStyle('bold');
     this.txtZoom = this.add.text(0, 12, '', { ...fuente, color: '#8b98a8' }).setDepth(20).setOrigin(1, 0);
     this.txtEscala = this.add.text(0, 30, '', { ...fuente, color: '#8b98a8' }).setDepth(20).setOrigin(1, 0);
     this.txtAyuda = this.add.text(14, 0, '', { ...fuente, color: '#8b98a8', lineSpacing: 3 }).setDepth(20).setOrigin(0, 1);
     this.txtCuenta = this.add.text(0, 0, '', { ...fuente, fontSize: '96px', color: '#ffd479' }).setDepth(30).setOrigin(0.5);
     this.txtPeri = this.add.text(0, 0, 'PERIAPSIS', { ...fuente, fontSize: '11px', color: '#ffb26f' }).setDepth(20).setOrigin(0.5).setVisible(false);
     this.txtApo = this.add.text(0, 0, 'APOAPSIS', { ...fuente, fontSize: '11px', color: '#6fd3ff' }).setDepth(20).setOrigin(0.5).setVisible(false);
-    this.txtVel = this.add.text(0, 0, 'V', { ...fuente, fontSize: '12px', color: '#4ade80' }).setDepth(20);
-    this.txtGrav = this.add.text(0, 0, 'g', { ...fuente, fontSize: '12px', color: '#ff7a7a' }).setDepth(20);
+    this.txtVel = this.add.text(0, 0, 'v', { ...fuente, fontSize: '15px', color: '#4ade80' })
+      .setDepth(20).setOrigin(0.5).setFontStyle('bold');
+    this.txtGrav = this.add.text(0, 0, 'a', { ...fuente, fontSize: '15px', color: '#ff7a7a' })
+      .setDepth(20).setOrigin(0.5).setFontStyle('bold');
     this.txtEjeX = this.add.text(0, 0, 'X', { ...fuente, fontSize: '12px', color: '#5b6b7f' }).setDepth(20);
     this.txtEjeY = this.add.text(0, 0, 'Y', { ...fuente, fontSize: '12px', color: '#5b6b7f' }).setDepth(20);
 
@@ -328,7 +348,8 @@ export class Lab extends Phaser.Scene {
     this.superficie.setPosition(cx, cy).setDisplaySize(dPlaneta, dPlaneta)
       .setRotation(this.tiempoVida * 0.012);
     this.sombra.setPosition(cx, cy).setDisplaySize(dPlaneta, dPlaneta);
-    this.atmosfera.setPosition(cx, cy).setDisplaySize(dPlaneta * 1.28, dPlaneta * 1.28);
+    this.atmosfera.setPosition(cx, cy)
+      .setDisplaySize(dPlaneta * FACTOR_ATMOSFERA, dPlaneta * FACTOR_ATMOSFERA);
 
     const g = this.g;
     g.clear();
@@ -379,8 +400,18 @@ export class Lab extends Phaser.Scene {
       this.txtApo.setText(`APOAPSIS ${Math.round(el.rApo - R_PLANET)} km`);
     } else { this.txtPeri.setVisible(false); this.txtApo.setVisible(false); }
 
-    // --- nave: posición y rumbo salen directo de la física
+    // --- vector posición: del centro de la Tierra a la nave
     const nx = px(sim.s.x), ny = py(sim.s.y);
+    if ($('ckPos').checked && sim.fase !== 'impacto') {
+      this.flecha(g, cx, cy, nx, ny, 0xb78bff, false);
+      // r y a caen sobre la misma recta, así que se rotulan a lados opuestos:
+      // r cerca de la Tierra y por un lado, a junto a la nave y por el otro
+      const dx = nx - cx, dy = ny - cy, largo = Math.hypot(dx, dy) || 1;
+      this.txtPos.setVisible(true)
+        .setPosition(cx + dx * 0.35 - (dy / largo) * 16, cy + dy * 0.35 + (dx / largo) * 16);
+    } else this.txtPos.setVisible(false);
+
+    // --- nave: posición y rumbo salen directo de la física
     const v = Math.hypot(sim.s.vx, sim.s.vy);
     const rumbo = Math.atan2(-sim.s.vy, sim.s.vx);
     const visible = sim.fase !== 'impacto';
@@ -401,7 +432,7 @@ export class Lab extends Phaser.Scene {
       const L = Phaser.Math.Clamp(v * 11, 30, 150);
       const ex = nx + (sim.s.vx / v) * L, ey = ny - (sim.s.vy / v) * L;
       this.flecha(g, nx, ny, ex, ey, 0x4ade80, sim.fase === 'listo');
-      this.txtVel.setPosition(ex + 6, ey - 14).setText(`V ${v.toFixed(2)} km/s`).setVisible(true);
+      this.txtVel.setPosition(ex + (sim.s.vx >= 0 ? 12 : -12), ey - 12).setVisible(true);
     } else this.txtVel.setVisible(false);
 
     const { ax, ay } = accel(sim.s.x, sim.s.y);
@@ -410,13 +441,14 @@ export class Lab extends Phaser.Scene {
       const L = Phaser.Math.Clamp(a * 7000, 28, 130);
       const ex = nx + (ax / a) * L, ey = ny - (ay / a) * L;
       this.flecha(g, nx, ny, ex, ey, 0xff7a7a, false);
-      this.txtGrav.setPosition(ex + 6, ey + 4).setText(`g ${(a * 1000).toFixed(2)} m/s²`).setVisible(true);
+      const px2 = -(ey - ny) / L, py2 = (ex - nx) / L;   // perpendicular unitaria
+      this.txtGrav.setPosition(ex - px2 * 15, ey - py2 * 15).setVisible(true);
     } else this.txtGrav.setVisible(false);
 
     // --- carteles
     const clave = estadoActual();
     const e = ESTADOS[clave];
-    this.txtEstado.setText(`${e.chip}  ${e.texto}`).setColor(e.color);
+    this.dibujarHud(clave, e, derived(sim.s));
 
     const zoom = k / vista.escalaRef;
     this.txtZoom.setPosition(w - 14, 12).setText(`ZOOM ×${zoom >= 1 ? zoom.toFixed(1) : zoom.toFixed(2)}`);
@@ -434,16 +466,70 @@ export class Lab extends Phaser.Scene {
         escapado: '= TRAYECTORIA CURVA ↘  la gravedad ya no alcanza a frenarla',
         impacto:  '= TRAYECTORIA CURVA ↘  faltó velocidad de costado: cayó',
       }[clave] || '= TRAYECTORIA CURVA ↘  la suma de las dos flechas';
-      this.txtAyuda.setPosition(14, h - 12).setVisible(true).setText(
+      this.txtAyuda.setPosition(14, h - 14).setVisible(true).setText(
         'VELOCIDAD →   la nave avanza de costado\n' +
         '+ GRAVEDAD ↓  la Tierra tira de ella\n' + cierre);
     } else this.txtAyuda.setVisible(false);
+
+    this.dibujarGizmo(w, h);
 
     this.txtCuenta.setPosition(cx, cy - Math.min(w, h) * 0.28);
     if (sim.fase === 'cuenta') {
       const n = Math.ceil(sim.cuenta);
       this.txtCuenta.setText(n > 0 ? String(n) : '🚀').setVisible(true).setAlpha(1 - (Math.ceil(sim.cuenta) - sim.cuenta));
     } else this.txtCuenta.setVisible(false);
+  }
+
+  // Panel de datos dentro de la escena, para no tener que mirar a la derecha.
+  dibujarHud(clave, estado, m) {
+    const filas = [
+      ['DISTANCIA r', `${m.r.toFixed(1)} km`],
+      ['ALTURA', `${m.h.toFixed(1)} km`],
+      ['VELOCIDAD', `${m.v.toFixed(3)} km/s`],
+      ['GRAVEDAD', `${(m.a * 1000).toFixed(3)} m/s²`],
+      ['TIEMPO FÍSICO', `${sim.t.toFixed(1)} s`],
+      ['REPRODUCCIÓN', `×${sim.velocidadTiempo}`],
+    ];
+    const x = 14, y = 12, ancho = 250, alto = 26 + filas.length * 19 + 24;
+
+    this.gHud.clear();
+    this.gHud.fillStyle(0x0a1018, 0.82).fillRoundedRect(x, y, ancho, alto, 6);
+    this.gHud.lineStyle(1, 0x24334a, 1).strokeRoundedRect(x, y, ancho, alto, 6);
+
+    this.hudEtiquetas.setPosition(x + 12, y + 12).setText(filas.map((f) => f[0]).join('\n'));
+    this.hudValores.setPosition(x + ancho - 12, y + 12).setText(filas.map((f) => f[1]).join('\n'));
+
+    const yEstado = y + 12 + filas.length * 19 + 6;
+    this.gHud.lineStyle(1, 0x24334a, 1);
+    this.gHud.beginPath();
+    this.gHud.moveTo(x + 12, yEstado - 2); this.gHud.lineTo(x + ancho - 12, yEstado - 2);
+    this.gHud.strokePath();
+    this.txtEstado.setPosition(x + 12, yEstado + 4).setText(`${estado.chip} ${estado.texto}`).setColor(estado.color);
+  }
+
+  // X, Y y el recordatorio de que la tercera coordenada existe y aquí vale 0.
+  dibujarGizmo(w, h) {
+    const x = w - 100, y = h - 70, L = 46;
+    const g = this.gGizmo;
+    g.clear();
+    g.lineStyle(2, 0x8b98a8, 1);
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + L, y); g.strokePath();          // X
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x, y - L); g.strokePath();          // Y
+    for (const [dx, dy] of [[L, 0], [0, -L]]) {                                 // puntas
+      const ang = Math.atan2(dy, dx);
+      g.beginPath();
+      g.moveTo(x + dx, y + dy);
+      g.lineTo(x + dx - 8 * Math.cos(ang - 0.4), y + dy - 8 * Math.sin(ang - 0.4));
+      g.lineTo(x + dx - 8 * Math.cos(ang + 0.4), y + dy - 8 * Math.sin(ang + 0.4));
+      g.closePath(); g.fillStyle(0x8b98a8, 1); g.fillPath();
+    }
+    // Z sale de la pantalla hacia quien mira: se dibuja como ⊙
+    g.lineStyle(1.5, 0x6fd3ff, 1);
+    g.strokeCircle(x, y, 6);
+    g.fillStyle(0x6fd3ff, 1).fillCircle(x, y, 2);
+    this.gzX.setPosition(x + L + 6, y);
+    this.gzY.setPosition(x, y - L - 6);
+    this.gzZ.setPosition(x + 12, y + 14);
   }
 
   flecha(g, x1, y1, x2, y2, color, punteada) {

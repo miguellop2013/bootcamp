@@ -14,6 +14,8 @@
       <div id="escena">
         <div id="game"></div>
 
+        <p id="aviso"></p>
+
         <!-- cartel de impacto, encima del canvas -->
         <div id="overlay" hidden>
           <div class="tarjeta">
@@ -55,13 +57,17 @@
               <button class="speed" data-speed="1">×1</button>
               <button class="speed" data-speed="10">×10</button>
               <button class="speed" data-speed="100">×100</button>
+              <button class="speed" data-speed="1000">×1000</button>
+              <button class="speed" data-speed="5000">×5000</button>
             </div>
+            <button id="btnOrbita">VER 1 ÓRBITA</button>
           </div>
         </div>
 
         <div class="inline checks">
-          <label><input id="ckVel" type="checkbox" checked /> vector velocidad</label>
-          <label><input id="ckGrav" type="checkbox" checked /> vector gravedad</label>
+          <label><input id="ckPos" type="checkbox" checked /> vector posición (r)</label>
+          <label><input id="ckVel" type="checkbox" checked /> vector velocidad (v)</label>
+          <label><input id="ckGrav" type="checkbox" checked /> vector gravedad (a)</label>
           <label><input id="ckAxes" type="checkbox" checked /> ejes X/Y</label>
           <label><input id="ckAyuda" type="checkbox" checked /> ayuda visual</label>
         </div>
@@ -80,33 +86,64 @@
     <section id="right">
       <header>
         <h1>Laboratorio Orbital</h1>
-        <p class="sub">Tierra · R = 6371 km · μ = 398600 km³/s² · t = <span id="outT">0</span> s</p>
+        <p class="sub">Modelo de dos cuerpos · Tierra: R = 6371 km · μ = 398600 km³/s²</p>
       </header>
 
+      <h2>¿Qué está pasando?</h2>
       <div id="estado" class="chip">⚪ LISTA PARA LANZAR</div>
-      <p id="detalleEstado" class="nota"></p>
-
-      <div class="grupos">
-        <div class="grupo"><h2>Posición</h2><div id="gPos" class="grid"></div></div>
-        <div class="grupo"><h2>Velocidad</h2><div id="gVel" class="grid"></div></div>
-        <div class="grupo"><h2>Gravedad</h2><div id="gGrav" class="grid"></div></div>
-        <div class="grupo"><h2>Energía</h2><div id="gEner" class="grid"></div></div>
+      <p id="relato" class="relato"></p>
+      <div class="reloj">
+        <span>tiempo físico simulado <b id="outT">0</b> s</span>
+        <span>reproducción <b id="outRitmo">×1</b></span>
       </div>
 
-      <h2>Gravedad</h2>
-      <pre id="fGrav" class="formula"></pre>
+      <h2>Sistema de coordenadas
+        <details class="ayuda"><summary>?</summary>
+          <p>Estamos usando un modelo 2D para simplificar la primera etapa del aprendizaje.
+          En una simulación espacial completa existiría también la coordenada Z, la profundidad
+          de la pantalla: hacia el observador o alejándose de él. Aquí toda la órbita ocurre en
+          un plano, así que Z = 0 en todo momento.</p>
+        </details>
+      </h2>
+      <div id="gPos" class="grid"></div>
+      <div id="fPos" class="formula"></div>
 
-      <h2>Velocidad orbital y de escape</h2>
-      <pre id="fVorb" class="formula"></pre>
+      <h2>Velocidad</h2>
+      <div id="gVel" class="grid"></div>
+      <div id="fVel" class="formula"></div>
+
+      <h2>Gravedad</h2>
+      <div id="fGrav" class="formula"></div>
+
+      <h2>Velocidad orbital circular</h2>
+      <div id="fVorb" class="formula"></div>
+
+      <h2>Velocidad de escape</h2>
+      <div id="fVesc" class="formula"></div>
 
       <h2>Energía</h2>
-      <pre id="fEner" class="formula"></pre>
+      <div id="fEner" class="formula"></div>
 
-      <h2>Componentes de la velocidad</h2>
-      <pre id="fTri" class="formula"></pre>
+      <h2>Seno y coseno</h2>
+      <div id="triangulo" class="triangulo"></div>
+      <div id="fTri" class="formula"></div>
 
       <h2>Paso a paso</h2>
       <div id="paso" class="caja"></div>
+
+      <h2>El modelo</h2>
+      <details class="ayuda-larga">
+        <summary>qué se simula y qué no</summary>
+        <ul>
+          <li>Dos cuerpos: la Tierra, fija en el origen, y la nave, un punto sin tamaño.</li>
+          <li>Gravedad newtoniana: <code>a = −μ/r³ · r</code> (vectores), integrada con Runge-Kutta 4.</li>
+          <li>Todo ocurre en un plano: Z = 0.</li>
+          <li>No hay Luna, Sol, atmósfera ni rotación terrestre en la física. La Tierra
+              gira en pantalla sólo para que se vea como un planeta.</li>
+          <li>El ×N acelera la reproducción, no la física: el tiempo simulado y las
+              fórmulas siguen siendo los mismos.</li>
+        </ul>
+      </details>
     </section>
   </main>
   <script type="module" src="./src/main.js"></script>
