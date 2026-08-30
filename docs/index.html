@@ -1,193 +1,286 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Laboratorio Orbital</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
-<style>
-  :root {
-    --bg: #0d1117;
-    --panel: #131a24;
-    --sunken: #0f151d;
-    --line: #263140;
-    --text: #d7e0ea;
-    --dim: #8b98a8;
-    --accent: #6fd3ff;
-    --vel: #4ade80;
-    --grav: #ff7a7a;
-    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Laboratorio Orbital</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
+  <style>
+:root {
+  --bg: #05070d;
+  --panel: #0f151f;
+  --sunken: #0a0f18;
+  --line: #1f2a3a;
+  --text: #dce5ef;
+  --dim: #8593a6;
+  --accent: #6fd3ff;
+  --ok: #4ade80;
+  --warn: #ffd479;
+  --bad: #ff7a7a;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
 
-  * { box-sizing: border-box; }
+* { box-sizing: border-box; }
 
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 14px;
-    font-variant-numeric: tabular-nums;
-  }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
 
-  #app { display: flex; height: 100vh; }
+#app { display: flex; height: 100vh; }
 
-  /* ---------- izquierda: simulación ---------- */
-  #left { flex: 1 1 55%; display: flex; flex-direction: column; min-width: 0; }
-  #game { flex: 1 1 auto; min-height: 0; }
+/* ---------------- izquierda: escena ---------------- */
+#left { flex: 1 1 68%; display: flex; flex-direction: column; min-width: 0; }
+#escena { position: relative; flex: 1 1 auto; min-height: 0; }
+#game { position: absolute; inset: 0; }
 
-  #controls {
-    border-top: 1px solid var(--line);
-    background: var(--panel);
-    padding: 10px 14px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+#overlay[hidden] { display: none; }
+#overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: flex-end; justify-content: center; padding-bottom: 8%;
+  background: radial-gradient(circle at center, rgba(120,20,20,0.28), rgba(5,7,13,0.72));
+  backdrop-filter: blur(1px);
+}
+#overlay .tarjeta {
+  background: rgba(15, 21, 31, 0.96);
+  border: 1px solid var(--bad);
+  border-radius: 8px;
+  padding: 18px 22px;
+  text-align: center;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.6);
+  animation: aparecer 0.28s ease-out;
+}
+@keyframes aparecer { from { transform: scale(0.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #overlay .tarjeta { animation: none; } }
 
-  .row { display: flex; flex-direction: column; gap: 3px; }
-  .row.inline { flex-direction: row; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .row label { color: var(--dim); }
-  .row label b { color: var(--text); }
-  input[type=range] { width: 100%; accent-color: var(--accent); }
+#overlay h3 { margin: 0 0 12px; color: var(--bad); font-size: 15px; letter-spacing: 1px; }
+#impactoDatos { display: grid; gap: 5px; margin-bottom: 14px; }
+#impactoDatos div { display: flex; justify-content: space-between; gap: 26px; }
+#impactoDatos span { color: var(--dim); }
 
-  button {
-    background: #1c2634;
-    color: var(--text);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    padding: 6px 12px;
-    font: inherit;
-    cursor: pointer;
-  }
-  button:hover { background: #26344a; }
-  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  button.active { border-color: var(--accent); color: var(--accent); }
+/* ---------------- controles ---------------- */
+#controls {
+  border-top: 1px solid var(--line);
+  background: linear-gradient(180deg, #121926, #0f151f);
+  padding: 12px 16px 14px;
+  display: flex; flex-direction: column; gap: 11px;
+}
 
-  .buttons { display: flex; gap: 8px; flex-wrap: wrap; }
-  .checks label { display: flex; align-items: center; gap: 4px; color: var(--dim); }
-  .presets { display: flex; flex-direction: row; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--dim); }
-  .presets button { padding: 4px 8px; font-size: 12px; }
+.sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px 20px; }
+.row { display: flex; flex-direction: column; gap: 4px; }
+.row label { color: var(--dim); }
+.row label b { color: var(--text); }
+.brujula { color: var(--ok); font-size: 15px; }
 
-  /* ---------- derecha: matemática ---------- */
-  #right {
-    flex: 1 1 45%;
-    border-left: 1px solid var(--line);
-    background: var(--panel);
-    padding: 16px 20px;
-    overflow-y: auto;
-  }
+input[type=range] {
+  width: 100%; height: 4px; -webkit-appearance: none; appearance: none;
+  background: #22303f; border-radius: 3px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--accent); border: 2px solid #0d1420; cursor: pointer;
+}
+input[type=range]::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); border: 2px solid #0d1420; cursor: pointer;
+}
 
-  h1 { font-size: 16px; margin: 0 0 4px; color: var(--accent); font-weight: 700; }
-  h2 { font-size: 12px; margin: 18px 0 6px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; font-weight: 500; }
-  .sub { margin: 0; color: var(--dim); font-size: 12px; }
-  .status { color: var(--accent); }
+button {
+  background: #1a2432; color: var(--text);
+  border: 1px solid var(--line); border-radius: 5px;
+  padding: 7px 13px; font: inherit; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+button:hover { background: #24334a; border-color: #33475f; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primario { background: #12405c; border-color: #2b7fa8; color: #cfefff; font-weight: 700; }
+button.primario:hover { background: #17527a; }
+button.active { border-color: var(--accent); color: var(--accent); background: #142333; }
 
-  .grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
-  .grid .k { color: var(--dim); }
-  .grid .v { color: var(--text); }
+.fila-botones { display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
+.buttons { display: flex; gap: 7px; flex-wrap: wrap; }
+.inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.etq { color: var(--dim); text-transform: uppercase; letter-spacing: 1px; font-size: 11px; }
+.segmentado { display: flex; }
+.segmentado button { border-radius: 0; margin-left: -1px; }
+.segmentado button:first-child { border-radius: 5px 0 0 5px; margin-left: 0; }
+.segmentado button:last-child { border-radius: 0 5px 5px 0; }
+.checks label { display: flex; align-items: center; gap: 5px; color: var(--dim); cursor: pointer; }
+.checks input { accent-color: var(--accent); }
+.presets button { font-size: 12px; padding: 5px 10px; }
 
-  .formula {
-    margin: 0;
-    padding: 10px 12px;
-    background: var(--sunken);
-    border: 1px solid var(--line);
-    border-radius: 4px;
-    white-space: pre-wrap;
-    line-height: 1.5;
-    overflow-x: auto;
-    font-family: var(--mono);
-  }
-  .formula .hl { color: var(--accent); }
+/* ---------------- derecha: matemática ---------------- */
+#right {
+  flex: 1 1 32%; min-width: 330px;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+  padding: 16px 18px 30px;
+  overflow-y: auto;
+}
 
-  @media (max-width: 860px) {
-    #app { flex-direction: column; height: auto; }
-    #game { height: 55vh; }
-    #right { border-left: none; border-top: 1px solid var(--line); }
-  }
-</style>
+header h1 { font-size: 15px; margin: 0 0 3px; color: var(--accent); letter-spacing: 0.5px; }
+.sub { margin: 0 0 14px; color: var(--dim); font-size: 11px; }
+
+.chip {
+  display: inline-block; padding: 7px 13px;
+  border: 1px solid var(--line); border-radius: 999px;
+  font-weight: 700; letter-spacing: 1px; font-size: 13px;
+}
+.nota { color: var(--dim); font-size: 11.5px; margin: 7px 0 14px; line-height: 1.5; }
+
+h2 { font-size: 10.5px; margin: 16px 0 6px; color: var(--dim); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 500; }
+
+.grupos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.grupo { background: var(--sunken); border: 1px solid var(--line); border-radius: 5px; padding: 8px 11px; }
+.grupo h2 { margin-top: 0; }
+.grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; }
+.grid .k { color: var(--dim); }
+.grid .v { color: var(--text); text-align: right; }
+
+.formula, .caja {
+  margin: 0; padding: 10px 12px;
+  background: var(--sunken); border: 1px solid var(--line); border-radius: 5px;
+  line-height: 1.55; font-family: var(--mono);
+}
+.formula { white-space: pre-wrap; overflow-x: auto; }
+.formula .hl { color: var(--accent); }
+.caja .nota { margin: 0 0 8px; }
+
+table.paso { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+table.paso th { color: var(--dim); font-weight: 500; text-align: right; padding: 2px 5px; }
+table.paso td { padding: 2px 5px; text-align: right; color: var(--dim); }
+table.paso td:first-child { text-align: left; color: var(--text); }
+table.paso .hl { color: var(--accent); }
+table.paso .delta { color: var(--warn); }
+
+@media (max-width: 900px) {
+  #app { flex-direction: column; height: auto; }
+  #escena { height: 58vh; }
+  #right { border-left: none; border-top: 1px solid var(--line); min-width: 0; }
+  .grupos { grid-template-columns: 1fr; }
+}
+  </style>
 </head>
 <body>
-<main id="app">
-  <!-- IZQUIERDA: simulación Phaser -->
-  <section id="left">
-    <div id="game"></div>
+  <main id="app">
+    <!-- IZQUIERDA: escena espacial -->
+    <section id="left">
+      <div id="escena">
+        <div id="game"></div>
 
-    <div id="controls">
-      <div class="row">
-        <label for="inV">Velocidad inicial <b><span id="outV">7.67</span> km/s</b></label>
-        <input id="inV" type="range" min="0" max="15" step="0.01" value="7.67" />
-      </div>
-      <div class="row">
-        <label for="inH">Altura <b><span id="outH">400</span> km</b></label>
-        <input id="inH" type="range" min="100" max="20000" step="10" value="400" />
-      </div>
-      <div class="row">
-        <label for="inA">Ángulo θ <b><span id="outA">90</span>°</b></label>
-        <input id="inA" type="range" min="0" max="360" step="1" value="90" />
+        <!-- cartel de impacto, encima del canvas -->
+        <div id="overlay" hidden>
+          <div class="tarjeta">
+            <h3>💥 IMPACTO CON LA TIERRA</h3>
+            <div id="impactoDatos"></div>
+            <button id="btnRetry">REINTENTAR</button>
+          </div>
+        </div>
       </div>
 
-      <div class="buttons">
-        <button id="btnLaunch">LANZAR</button>
-        <button id="btnPause">PAUSA</button>
-        <button id="btnReset">REINICIAR</button>
-        <button id="btnStep">PASO</button>
+      <div id="controls">
+        <div class="sliders">
+          <div class="row">
+            <label for="inV">Velocidad inicial <b><span id="outV">7.67</span> km/s</b></label>
+            <input id="inV" type="range" min="0" max="15" step="0.01" value="7.67" />
+          </div>
+          <div class="row">
+            <label for="inH">Altura <b><span id="outH">400</span> km</b></label>
+            <input id="inH" type="range" min="100" max="20000" step="10" value="400" />
+          </div>
+          <div class="row">
+            <label for="inA">Ángulo θ <b><span id="outA">90</span>°</b> <span id="brujula" class="brujula">↑</span></label>
+            <input id="inA" type="range" min="0" max="360" step="1" value="90" />
+          </div>
+        </div>
+
+        <div class="fila-botones">
+          <div class="buttons">
+            <button id="btnLaunch" class="primario">▶ LANZAR</button>
+            <button id="btnPause">PAUSA</button>
+            <button id="btnStep">PASO</button>
+            <button id="btnReset">REINICIAR</button>
+            <button id="btnClear">LIMPIAR TRAYECTORIA</button>
+          </div>
+
+          <div class="inline">
+            <span class="etq">Tiempo</span>
+            <div class="segmentado">
+              <button class="speed" data-speed="1">×1</button>
+              <button class="speed" data-speed="10">×10</button>
+              <button class="speed" data-speed="100">×100</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="inline checks">
+          <label><input id="ckVel" type="checkbox" checked /> vector velocidad</label>
+          <label><input id="ckGrav" type="checkbox" checked /> vector gravedad</label>
+          <label><input id="ckAxes" type="checkbox" checked /> ejes X/Y</label>
+          <label><input id="ckAyuda" type="checkbox" checked /> ayuda visual</label>
+        </div>
+
+        <div class="inline presets">
+          <span class="etq">Experimentos</span>
+          <button class="preset" data-v="5" data-h="400" data-a="90">1 · velocidad insuficiente</button>
+          <button class="preset" data-v="7.67" data-h="400" data-a="90">2 · circular</button>
+          <button class="preset" data-v="9.2" data-h="400" data-a="90">3 · elíptica</button>
+          <button class="preset" data-v="11.5" data-h="400" data-a="90">4 · escape</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- DERECHA: matemática -->
+    <section id="right">
+      <header>
+        <h1>Laboratorio Orbital</h1>
+        <p class="sub">Tierra · R = 6371 km · μ = 398600 km³/s² · t = <span id="outT">0</span> s</p>
+      </header>
+
+      <div id="estado" class="chip">⚪ LISTA PARA LANZAR</div>
+      <p id="detalleEstado" class="nota"></p>
+
+      <div class="grupos">
+        <div class="grupo"><h2>Posición</h2><div id="gPos" class="grid"></div></div>
+        <div class="grupo"><h2>Velocidad</h2><div id="gVel" class="grid"></div></div>
+        <div class="grupo"><h2>Gravedad</h2><div id="gGrav" class="grid"></div></div>
+        <div class="grupo"><h2>Energía</h2><div id="gEner" class="grid"></div></div>
       </div>
 
-      <div class="row inline">
-        <span>Tiempo:</span>
-        <button class="speed" data-speed="1">×1</button>
-        <button class="speed" data-speed="10">×10</button>
-        <button class="speed" data-speed="100">×100</button>
-      </div>
+      <h2>Gravedad</h2>
+      <pre id="fGrav" class="formula"></pre>
 
-      <div class="row inline checks">
-        <label><input id="ckVel" type="checkbox" checked /> vector velocidad</label>
-        <label><input id="ckGrav" type="checkbox" checked /> vector gravedad</label>
-        <label><input id="ckAxes" type="checkbox" checked /> ejes X/Y</label>
-      </div>
+      <h2>Velocidad orbital y de escape</h2>
+      <pre id="fVorb" class="formula"></pre>
 
-      <div class="row presets">
-        <span>Experimentos:</span>
-        <button class="preset" data-v="5" data-h="400" data-a="90">1· insuficiente</button>
-        <button class="preset" data-v="7.67" data-h="400" data-a="90">2· circular</button>
-        <button class="preset" data-v="9.2" data-h="400" data-a="90">3· elíptica</button>
-        <button class="preset" data-v="11.5" data-h="400" data-a="90">4· escape</button>
-      </div>
-    </div>
-  </section>
+      <h2>Energía</h2>
+      <pre id="fEner" class="formula"></pre>
 
-  <!-- DERECHA: matemática -->
-  <section id="right">
-    <h1>Laboratorio de Mecánica Orbital</h1>
-    <p class="sub">Tierra: R = 6371 km &nbsp;·&nbsp; μ = 398600 km³/s² &nbsp;·&nbsp; t = <span id="outT">0</span> s
-      &nbsp;·&nbsp; <span id="outStatus" class="status">en pausa</span></p>
+      <h2>Componentes de la velocidad</h2>
+      <pre id="fTri" class="formula"></pre>
 
-    <h2>Variables actuales</h2>
-    <div id="vars" class="grid"></div>
+      <h2>Paso a paso</h2>
+      <div id="paso" class="caja"></div>
+    </section>
+  </main>
+  <!-- Phaser 3 vive en el repositorio: la página no depende de ningún CDN -->
+  <script src="./phaser.min.js"></script>
+  <script>
+// ===================== src/util.js =====================
+// Atajo compartido por los módulos que tocan el DOM.
+const $ = (id) => document.getElementById(id);
 
-    <h2>Gravedad</h2>
-    <pre id="fGrav" class="formula"></pre>
-
-    <h2>Velocidad orbital circular</h2>
-    <pre id="fVorb" class="formula"></pre>
-
-    <h2>Velocidad de escape</h2>
-    <pre id="fVesc" class="formula"></pre>
-
-    <h2>Componentes de la velocidad</h2>
-    <pre id="fTri" class="formula"></pre>
-  </section>
-</main>
-
-<!-- Phaser 3 servido desde el propio repositorio: la página funciona sin CDN. -->
-<script src="./phaser.min.js"></script>
-<script>
-// =============================== FÍSICA ===============================
+// ===================== src/physics.js =====================
 // Modelo simple de dos cuerpos: planeta fijo en el origen + nave puntual.
 // Unidades: kilómetros y segundos.
-const MU = 398600;      // km^3/s^2  (parámetro gravitacional de la Tierra)
-const R_PLANET = 6371;  // km        (radio de la Tierra)
+
+const MU = 398600;   // km^3/s^2  (parámetro gravitacional de la Tierra)
+const R_PLANET = 6371; // km      (radio de la Tierra)
 
 // Aceleración newtoniana:  a = -mu / r^3 * r_vector
 function accel(x, y) {
@@ -235,59 +328,257 @@ function derived(s) {
   return {
     r,
     v,
-    h: r - R_PLANET,               // altura sobre la superficie
-    a: MU / (r * r),               // aceleración gravitacional (km/s^2)
-    vCirc: Math.sqrt(MU / r),      // velocidad de órbita circular a esa r
-    vEsc: Math.sqrt(2 * MU / r),   // velocidad de escape a esa r
+    h: r - R_PLANET,             // altura sobre la superficie
+    a: MU / (r * r),             // aceleración gravitacional (km/s^2)
+    vCirc: Math.sqrt(MU / r),    // velocidad de órbita circular a esa r
+    vEsc: Math.sqrt(2 * MU / r), // velocidad de escape a esa r
     energia: (v * v) / 2 - MU / r, // energía específica: <0 ligado, >0 escapa
     theta: (Math.atan2(s.vy, s.vx) * 180) / Math.PI, // dirección de la velocidad
   };
 }
 
-// =============================== PANEL ===============================
-const $ = (id) => document.getElementById(id);
-const n = (x, d = 3) => x.toFixed(d);
+// Elementos de la órbita, deducidos de la posición y la velocidad actuales.
+// Sirven para clasificar la trayectoria y para saber dónde están los ápsides.
+function orbitalElements(s) {
+  const r = Math.hypot(s.x, s.y);
+  const v2 = s.vx * s.vx + s.vy * s.vy;
+  const rv = s.x * s.vx + s.y * s.vy;
 
-function renderPanel(state, tiempo, estado) {
-  const m = derived(state);
+  // vector excentricidad:  e = ((v² - μ/r)·r_vec - (r·v)·v_vec) / μ
+  const c = v2 - MU / r;
+  const ex = (c * s.x - rv * s.vx) / MU;
+  const ey = (c * s.y - rv * s.vy) / MU;
+  const e = Math.hypot(ex, ey);
+
+  const energia = v2 / 2 - MU / r;
+  const a = e < 1 ? -MU / (2 * energia) : Infinity; // semieje mayor
+  const anguloPeriapsis = Math.atan2(ey, ex);
+
+  return {
+    e,
+    a,
+    energia,
+    anguloPeriapsis,
+    rPeri: e < 1 ? a * (1 - e) : (a === Infinity ? NaN : NaN),
+    rApo: e < 1 ? a * (1 + e) : NaN,
+    periodo: e < 1 ? 2 * Math.PI * Math.sqrt((a * a * a) / MU) : NaN,
+  };
+}
+
+// Clasificación cualitativa de la trayectoria (lo que el panel muestra como estado).
+function clasificar(s) {
+  const { e } = orbitalElements(s);
+  if (e >= 1) return 'escape';
+  if (e < 0.02) return 'circular';
+  return 'eliptica';
+}
+
+// ===================== src/sim.js =====================
+// Estado de la simulación y avance temporal.
+// Todo lo visual (scene.js) lee de aquí; nada de aquí depende de Phaser.
+
+const sim = {
+  s: initialState(7.67, 400, 90),
+  t: 0,
+  corriendo: false,
+  velocidadTiempo: 1,
+  fase: 'listo',      // listo | cuenta | vuelo | impacto
+  cuenta: 0,          // segundos que faltan de la cuenta regresiva
+  motor: 0,           // segundos de llama del motor que quedan
+  traza: [],
+  eventos: [],        // la escena los consume: 'lanzar', 'impacto'
+  impacto: null,      // { t, v, altura }
+  paso: null,         // { antes, despues } del modo paso a paso
+  r0: R_PLANET + 400, // radio inicial, referencia para decidir "ya escapó"
+  escape: false,      // ya se alejó lo suficiente como para cantar ESCAPE
+};
+
+// Etiquetas de estado que comparten la escena y el panel.
+const ESTADOS = {
+  listo:    { chip: '⚪', texto: 'LISTA PARA LANZAR', color: '#8b98a8' },
+  cuenta:   { chip: '⚪', texto: 'CUENTA REGRESIVA',  color: '#ffd479' },
+  circular: { chip: '🟢', texto: 'ÓRBITA CIRCULAR',   color: '#4ade80' },
+  eliptica: { chip: '🟡', texto: 'ÓRBITA ELÍPTICA',   color: '#ffd479' },
+  escape:   { chip: '🔵', texto: 'TRAYECTORIA DE ESCAPE', color: '#6fd3ff' },
+  escapado: { chip: '🔵', texto: 'ESCAPE',            color: '#6fd3ff' },
+  impacto:  { chip: '🔴', texto: 'IMPACTO CON LA TIERRA', color: '#ff7a7a' },
+};
+
+function estadoActual() {
+  if (sim.fase === 'impacto') return 'impacto';
+  if (sim.fase === 'listo') return 'listo';
+  if (sim.fase === 'cuenta') return 'cuenta';
+  const clase = clasificar(sim.s);
+  if (clase === 'escape') return sim.escape ? 'escapado' : 'escape';
+  return clase;
+}
+
+function reiniciar({ v0, altura, angulo }, lanzar) {
+  sim.s = initialState(v0, altura, angulo);
+  sim.t = 0;
+  sim.r0 = R_PLANET + altura;
+  sim.traza = [{ x: sim.s.x, y: sim.s.y }];
+  sim.impacto = null;
+  sim.paso = null;
+  sim.escape = false;
+  sim.motor = 0;
+  if (lanzar) {
+    sim.fase = 'cuenta';
+    sim.cuenta = 3;     // "3 · 2 · 1 · 🚀"
+    sim.corriendo = false;
+  } else {
+    sim.fase = 'listo';
+    sim.cuenta = 0;
+    sim.corriendo = false;
+  }
+}
+
+function limpiarTraza() {
+  sim.traza = [{ x: sim.s.x, y: sim.s.y }];
+}
+
+// Avanza la cuenta regresiva con el tiempo real del navegador.
+function avanzarCuenta(dtReal) {
+  if (sim.fase !== 'cuenta') return;
+  sim.cuenta -= dtReal;
+  if (sim.cuenta <= 0) {
+    sim.fase = 'vuelo';
+    sim.corriendo = true;
+    sim.motor = 1.5; // la llama del motor se ve un momento tras el despegue
+    sim.eventos.push('lanzar');
+  }
+}
+
+// Avanza la física dtSim segundos, en pasos pequeños para no perder precisión.
+function avanzar(dtSim) {
+  if (sim.fase === 'impacto') return;
+  const hMax = 2;
+  let restante = Math.min(dtSim, 600);
+
+  while (restante > 0) {
+    const h = Math.min(hMax, restante);
+    const previo = sim.s;
+    sim.s = step(sim.s, h);
+    sim.t += h;
+    restante -= h;
+
+    if (Math.hypot(sim.s.x, sim.s.y) <= R_PLANET) { registrarImpacto(previo, h); break; }
+    apuntarTraza();
+  }
+  apuntarTraza();
+
+  const r = Math.hypot(sim.s.x, sim.s.y);
+  if (!sim.escape && r > Math.max(4 * sim.r0, 30000) && orbitalElements(sim.s).e >= 1) {
+    sim.escape = true; // se aleja de verdad: ya podemos cantar ESCAPE, sin detenerla
+  }
+}
+
+// El paso que cruza la superficie se afina por bisección para que el impacto
+// quede justo sobre el suelo y la velocidad de impacto sea la real.
+function registrarImpacto(previo, h) {
+  let bajo = 0, alto = h;
+  for (let i = 0; i < 40; i++) {
+    const medio = (bajo + alto) / 2;
+    const p = step(previo, medio);
+    if (Math.hypot(p.x, p.y) > R_PLANET) bajo = medio; else alto = medio;
+  }
+  sim.s = step(previo, alto);
+  sim.t += alto - h;
+  const m = derived(sim.s);
+  sim.impacto = { t: sim.t, v: m.v, altura: Math.max(0, m.h) };
+  sim.fase = 'impacto';
+  sim.corriendo = false;
+  sim.motor = 0;
+  apuntarTraza(true);
+  sim.eventos.push('impacto');
+}
+
+function apuntarTraza(forzar) {
+  const ult = sim.traza[sim.traza.length - 1];
+  if (forzar || !ult || Math.hypot(sim.s.x - ult.x, sim.s.y - ult.y) > 15) {
+    sim.traza.push({ x: sim.s.x, y: sim.s.y });
+    if (sim.traza.length > 6000) sim.traza.shift();
+  }
+}
+
+// Una foto del estado, para comparar ANTES y DESPUÉS en el modo paso a paso.
+function foto() {
+  const m = derived(sim.s);
+  return { t: sim.t, x: sim.s.x, y: sim.s.y, vx: sim.s.vx, vy: sim.s.vy, r: m.r, v: m.v, a: m.a, h: m.h };
+}
+
+function darPaso(dt = 10) {
+  if (sim.fase === 'impacto') return;
+  if (sim.fase === 'cuenta') { sim.fase = 'vuelo'; }
+  const antes = foto();
+  sim.corriendo = false;
+  avanzar(dt);
+  sim.paso = { antes, despues: foto(), dt };
+}
+
+// ===================== src/panel.js =====================
+// Panel derecho: estado físico, variables agrupadas y fórmulas con sus números.
+
+// el 0 negativo (p. ej. una altura de -1e-9 al tocar el suelo) se muestra como 0
+const n = (x, d = 3) => (Number.isFinite(x) ? (Math.abs(x) < 5e-4 ? (0).toFixed(d) : x.toFixed(d)) : '—');
+
+function renderPanel() {
+  const s = sim.s;
+  const m = derived(s);
+  const el = orbitalElements(s);
   const theta = (m.theta + 360) % 360;
-  const vx = state.vx, vy = state.vy;
+  const clave = estadoActual();
+  const e = ESTADOS[clave];
 
-  $('outT').textContent = n(tiempo, 1);
-  $('outStatus').textContent = estado;
+  // --- estado (lo primero que se lee)
+  const chip = $('estado');
+  chip.textContent = `${e.chip}  ${e.texto}`;
+  chip.style.color = e.color;
+  chip.style.borderColor = e.color + '66';
+  $('outT').textContent = n(sim.t, 1);
 
-  $('vars').innerHTML = [
-    ['x', n(state.x) + ' km'],
-    ['y', n(state.y) + ' km'],
-    ['r', n(m.r) + ' km'],
-    ['h', n(m.h) + ' km'],
-    ['v', n(m.v, 4) + ' km/s'],
-    ['a', m.a.toFixed(6) + ' km/s²  (' + n(m.a * 1000, 3) + ' m/s²)'],
-    ['Vx', n(vx, 4) + ' km/s'],
-    ['Vy', n(vy, 4) + ' km/s'],
-    ['θ', n(theta, 1) + '°'],
-    ['energía', n(m.energia, 3) + ' km²/s²  (' + (m.energia < 0 ? 'órbita ligada' : 'trayectoria de escape') + ')'],
-  ].map(([k, v]) => '<div class="k">' + k + '</div><div class="v">' + v + '</div>').join('');
+  $('detalleEstado').textContent =
+    clave === 'impacto' ? `la nave tocó la superficie a ${n(sim.impacto.v, 3)} km/s`
+    : clave === 'circular' ? `e = ${n(el.e, 4)} · la distancia casi no cambia`
+    : clave === 'eliptica' ? `e = ${n(el.e, 3)} · entre ${Math.round(el.rPeri - R_PLANET)} y ${Math.round(el.rApo - R_PLANET)} km de altura`
+    : clave === 'escape' || clave === 'escapado' ? `e = ${n(el.e, 3)} ≥ 1 · energía positiva, no vuelve`
+    : 'elegí velocidad, altura y ángulo, y pulsá LANZAR';
 
+  // --- variables por grupos
+  $('gPos').innerHTML = filas([
+    ['x', `${n(s.x)} km`], ['y', `${n(s.y)} km`],
+    ['r', `${n(m.r)} km`], ['altura', `${n(m.h)} km`],
+  ]);
+  $('gVel').innerHTML = filas([
+    ['vx', `${n(s.vx, 4)} km/s`], ['vy', `${n(s.vy, 4)} km/s`],
+    ['|v|', `${n(m.v, 4)} km/s`], ['θ', `${n(theta, 1)}°`],
+  ]);
+  $('gGrav').innerHTML = filas([
+    ['a', `${m.a.toFixed(6)} km/s²`], ['', `${n(m.a * 1000, 3)} m/s²`],
+  ]);
+  $('gEner').innerHTML = filas([
+    ['E', `${n(m.energia, 3)} km²/s²`],
+    ['', m.energia < 0 ? 'E < 0 → órbita ligada' : 'E ≥ 0 → escapa'],
+  ]);
+
+  // --- fórmulas con los valores sustituidos
   $('fGrav').innerHTML =
 `a = μ / r²
 a = ${MU} / ${n(m.r)}²
-a ≈ <span class="hl">${m.a.toFixed(6)} km/s²</span>
-  ≈ <span class="hl">${n(m.a * 1000, 3)} m/s²</span>
-
-r = R + h = ${R_PLANET} + ${n(m.h)} = ${n(m.r)} km`;
+a ≈ <span class="hl">${m.a.toFixed(6)} km/s²</span>  ≈  <span class="hl">${n(m.a * 1000, 3)} m/s²</span>`;
 
   $('fVorb').innerHTML =
 `v = √(μ / r)
 v = √(${MU} / ${n(m.r)})
-v ≈ <span class="hl">${n(m.vCirc, 4)} km/s</span>
+v ≈ <span class="hl">${n(m.vCirc, 4)} km/s</span>   (circular a esta altura)
 
-velocidad actual: <span class="hl">${n(m.v, 4)} km/s</span>  →  ${comparar(m.v, m.vCirc, m.vEsc)}`;
+v_esc = √(2μ / r) ≈ <span class="hl">${n(m.vEsc, 4)} km/s</span>
+velocidad actual: <span class="hl">${n(m.v, 4)} km/s</span> → ${comparar(m.v, m.vCirc, m.vEsc)}`;
 
-  $('fVesc').innerHTML =
-`v_esc = √(2μ / r)
-v_esc = √(2 · ${MU} / ${n(m.r)})
-v_esc ≈ <span class="hl">${n(m.vEsc, 4)} km/s</span>`;
+  $('fEner').innerHTML =
+`E = v² / 2 − μ / r
+E = ${n(m.v, 4)}² / 2 − ${MU} / ${n(m.r)}
+E ≈ <span class="hl">${n(m.energia, 3)} km²/s²</span>`;
 
   $('fTri').innerHTML =
 `   Vy
@@ -301,202 +592,577 @@ v_esc ≈ <span class="hl">${n(m.vEsc, 4)} km/s</span>`;
        Vx
 
 V  = ${n(m.v, 4)} km/s      θ = ${n(theta, 1)}°
-Vx = V cos(θ) = ${n(m.v, 4)} · cos(${n(theta, 1)}°) = <span class="hl">${n(vx, 4)} km/s</span>
-Vy = V sin(θ) = ${n(m.v, 4)} · sin(${n(theta, 1)}°) = <span class="hl">${n(vy, 4)} km/s</span>`;
+Vx = V cos(θ) = ${n(m.v, 4)} · cos(${n(theta, 1)}°) = <span class="hl">${n(s.vx, 4)} km/s</span>
+Vy = V sin(θ) = ${n(m.v, 4)} · sin(${n(theta, 1)}°) = <span class="hl">${n(s.vy, 4)} km/s</span>`;
+
+  renderPaso();
+}
+
+// Modo paso a paso: qué había antes del paso y qué hay después.
+function renderPaso() {
+  const caja = $('paso');
+  if (!sim.paso) { caja.innerHTML = '<p class="nota">Pausá la simulación y pulsá PASO: acá vas a ver qué cambió en ese intervalo.</p>'; return; }
+  const { antes, despues, dt } = sim.paso;
+  const fila = (etq, a, b, u, d = 4) =>
+    `<tr><td>${etq}</td><td>${n(a, d)}</td><td>→</td><td class="hl">${n(b, d)}</td><td>${u}</td>
+     <td class="delta">${(b - a >= 0 ? '+' : '') + n(b - a, d)}</td></tr>`;
+  caja.innerHTML =
+    `<p class="nota">Un paso de <b>${dt} s</b>: la computadora usó la aceleración para corregir la velocidad, y la velocidad para mover la posición.</p>
+     <table class="paso">
+       <tr><th></th><th>antes</th><th></th><th>después</th><th></th><th>Δ</th></tr>
+       ${fila('x', antes.x, despues.x, 'km', 2)}
+       ${fila('y', antes.y, despues.y, 'km', 2)}
+       ${fila('vx', antes.vx, despues.vx, 'km/s')}
+       ${fila('vy', antes.vy, despues.vy, 'km/s')}
+       ${fila('r', antes.r, despues.r, 'km', 2)}
+       ${fila('|v|', antes.v, despues.v, 'km/s')}
+       ${fila('a', antes.a * 1000, despues.a * 1000, 'm/s²', 4)}
+     </table>`;
+}
+
+function filas(pares) {
+  return pares.map(([k, v]) => `<div class="k">${k}</div><div class="v">${v}</div>`).join('');
 }
 
 function comparar(v, vCirc, vEsc) {
-  if (v >= vEsc) return 'escapa del planeta';
-  if (Math.abs(v - vCirc) < 0.02) return 'órbita casi circular';
-  return v < vCirc ? 'menor que la circular (elipse hacia adentro)'
-                   : 'mayor que la circular (elipse hacia afuera)';
+  if (v >= vEsc) return 'supera la de escape';
+  if (Math.abs(v - vCirc) < 0.02) return 'casi exactamente la circular';
+  return v < vCirc ? 'menor que la circular (cae hacia adentro)' : 'mayor que la circular (se estira hacia afuera)';
 }
 
-// =============================== SIMULACIÓN ===============================
-const sim = {
-  s: initialState(7.67, 400, 90),
-  t: 0,
-  corriendo: false,
-  velocidadTiempo: 1,
-  estado: 'en pausa',
-  traza: [],
-  escala: 0.01, // px por km (se ajusta solo)
-};
-
-function leerControles() {
-  return {
-    v0: parseFloat($('inV').value),
-    h: parseFloat($('inH').value),
-    ang: parseFloat($('inA').value),
-  };
+// --- cartel de impacto sobre la escena
+function mostrarImpacto() {
+  const i = sim.impacto;
+  $('impactoDatos').innerHTML =
+    `<div><span>tiempo de vuelo</span><b>${n(i.t, 1)} s</b></div>
+     <div><span>velocidad de impacto</span><b>${n(i.v, 3)} km/s</b></div>
+     <div><span>altura</span><b>${n(i.altura, 1)} km</b></div>`;
+  $('overlay').hidden = false;
 }
 
-function reiniciar(lanzar) {
-  const c = leerControles();
-  sim.s = initialState(c.v0, c.h, c.ang);
-  sim.t = 0;
-  sim.traza = [{ x: sim.s.x, y: sim.s.y }];
-  sim.corriendo = !!lanzar;
-  sim.estado = lanzar ? 'en vuelo' : 'en pausa';
-  $('btnPause').textContent = 'PAUSA';
-}
+function ocultarImpacto() { $('overlay').hidden = true; }
 
-// Avanza la física dtSim segundos, en pasos pequeños para no perder precisión.
-function avanzar(dtSim) {
-  const hMax = 2; // segundos por paso de integración
-  let restante = Math.min(dtSim, 400);
-  while (restante > 0) {
-    const h = Math.min(hMax, restante);
-    sim.s = step(sim.s, h);
-    sim.t += h;
-    restante -= h;
+// ===================== src/scene.js =====================
+// Escena de Phaser: dibuja el espacio, la Tierra, la nave y la trayectoria.
+// Aquí no hay física: todo lo que se ve sale de la posición que calcula sim.js.
 
-    const r = Math.hypot(sim.s.x, sim.s.y);
-    if (r <= R_PLANET) { sim.corriendo = false; sim.estado = 'IMPACTO contra el planeta'; break; }
-    if (r > 400000) { sim.corriendo = false; sim.estado = 'ESCAPÓ del planeta'; break; }
-    if (sim.corriendo) {
-      const e = derived(sim.s).energia;
-      sim.estado = e > 0 ? 'en vuelo (trayectoria de escape)' : 'en vuelo (órbita ligada)';
+
+// Estado de cámara: km -> píxeles. La física siempre va en km.
+const vista = { escala: 0.01, escalaRef: 0.01, reencuadrar: true };
+
+// ---------------------------------------------------------------- texturas
+// Todo se dibuja a mano en un canvas: ninguna imagen externa que cargar.
+function texturaTierra(scene) {
+  const S = 512, R = 250, c = S / 2;
+  const ctx = scene.textures.createCanvas('tierra', S, S).getContext();
+
+  ctx.save();
+  ctx.beginPath(); ctx.arc(c, c, R, 0, Math.PI * 2); ctx.clip();
+
+  // océano
+  const mar = ctx.createRadialGradient(c - 70, c - 80, 30, c, c, R);
+  mar.addColorStop(0, '#3d9ade');
+  mar.addColorStop(0.55, '#1f6bb0');
+  mar.addColorStop(1, '#0e3f75');
+  ctx.fillStyle = mar;
+  ctx.fillRect(0, 0, S, S);
+
+  // Continentes: manchas irregulares alrededor del polo, porque estamos
+  // mirando la Tierra desde el eje de rotación (el plano de la órbita).
+  // Cada una se dibuja con curvas suaves para que no parezcan polígonos.
+  const continentes = [
+    { ang: -1.35, rad: 0.50, w: 0.40, h: 0.30, giro: 0.3 },
+    { ang: -0.75, rad: 0.72, w: 0.22, h: 0.18, giro: 0.9 },
+    { ang: -0.10, rad: 0.58, w: 0.34, h: 0.26, giro: -0.4 },
+    { ang:  0.55, rad: 0.75, w: 0.26, h: 0.20, giro: 0.2 },
+    { ang:  1.25, rad: 0.52, w: 0.36, h: 0.28, giro: 0.7 },
+    { ang:  2.05, rad: 0.70, w: 0.24, h: 0.17, giro: -0.6 },
+    { ang:  2.75, rad: 0.46, w: 0.30, h: 0.24, giro: 0.1 },
+    { ang: -2.35, rad: 0.66, w: 0.28, h: 0.22, giro: 0.5 },
+    { ang: -1.95, rad: 0.30, w: 0.22, h: 0.18, giro: -0.2 },
+  ];
+
+  const verde = ctx.createRadialGradient(c - 60, c - 70, 20, c, c, R);
+  verde.addColorStop(0, '#79b56a');
+  verde.addColorStop(0.6, '#4f9150');
+  verde.addColorStop(1, '#3c6f45');
+
+  for (const t of continentes) {
+    const cxx = c + Math.cos(t.ang) * R * t.rad;
+    const cyy = c + Math.sin(t.ang) * R * t.rad;
+    ctx.save();
+    ctx.translate(cxx, cyy);
+    ctx.rotate(t.giro);
+    ctx.beginPath();
+    // contorno ondulado: un círculo deformado con varios armónicos
+    for (let i = 0; i <= 40; i++) {
+      const a = (i / 40) * Math.PI * 2;
+      const ondas = 1 + 0.24 * Math.sin(a * 3 + t.ang * 4) + 0.14 * Math.sin(a * 5 - t.giro * 3);
+      const x = Math.cos(a) * R * t.w * ondas;
+      const y = Math.sin(a) * R * t.h * ondas;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
     }
+    ctx.closePath();
+    ctx.fillStyle = verde;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(190,225,180,0.20)';  // orilla
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // desierto en algunas
+    if (t.w > 0.3) {
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = '#b9a86d';
+      ctx.beginPath();
+      ctx.ellipse(R * t.w * 0.18, -R * t.h * 0.18, R * t.w * 0.42, R * t.h * 0.32, 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
   }
-  const ult = sim.traza[sim.traza.length - 1];
-  if (!ult || Math.hypot(sim.s.x - ult.x, sim.s.y - ult.y) > 20) {
-    sim.traza.push({ x: sim.s.x, y: sim.s.y });
-    if (sim.traza.length > 4000) sim.traza.shift();
+
+  // casquete polar en el centro (miramos desde el eje de rotación)
+  const hielo = ctx.createRadialGradient(c, c, 2, c, c, R * 0.20);
+  hielo.addColorStop(0, 'rgba(248,252,255,0.95)');
+  hielo.addColorStop(0.6, 'rgba(230,245,255,0.55)');
+  hielo.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = hielo;
+  ctx.beginPath(); ctx.arc(c, c, R * 0.20, 0, Math.PI * 2); ctx.fill();
+
+  // nubes: espirales suaves, muy tenues
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  for (let i = 0; i < 30; i++) {
+    const ang = i * 1.9;
+    const rad = R * (0.18 + 0.78 * ((i * 41) % 100) / 100);
+    ctx.beginPath();
+    ctx.ellipse(c + Math.cos(ang) * rad, c + Math.sin(ang) * rad,
+                R * 0.22, R * 0.055, ang + 1.2, 0, Math.PI * 2);
+    ctx.fill();
   }
+
+  ctx.restore();
+  scene.textures.get('tierra').refresh();
 }
 
-// =============================== ESCENA PHASER ===============================
+function texturaSombra(scene) {
+  const S = 512, R = 250, c = S / 2;
+  const ctx = scene.textures.createCanvas('sombra', S, S).getContext();
+  ctx.save();
+  ctx.beginPath(); ctx.arc(c, c, R, 0, Math.PI * 2); ctx.clip();
+
+  // lado iluminado (el Sol queda arriba a la izquierda)
+  const luz = ctx.createRadialGradient(c - R * 0.45, c - R * 0.45, 10, c - R * 0.3, c - R * 0.3, R * 1.5);
+  luz.addColorStop(0, 'rgba(255,248,220,0.30)');
+  luz.addColorStop(0.45, 'rgba(255,255,255,0.04)');
+  luz.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = luz; ctx.fillRect(0, 0, S, S);
+
+  // noche del lado opuesto
+  const noche = ctx.createRadialGradient(c + R * 0.5, c + R * 0.5, R * 0.15, c + R * 0.35, c + R * 0.35, R * 1.35);
+  noche.addColorStop(0, 'rgba(2,6,14,0.66)');
+  noche.addColorStop(0.55, 'rgba(2,6,14,0.35)');
+  noche.addColorStop(1, 'rgba(2,6,14,0)');
+  ctx.fillStyle = noche; ctx.fillRect(0, 0, S, S);
+
+  // oscurecimiento del borde, para que el disco se lea como esfera
+  const borde = ctx.createRadialGradient(c, c, R * 0.72, c, c, R);
+  borde.addColorStop(0, 'rgba(0,0,0,0)');
+  borde.addColorStop(1, 'rgba(0,10,25,0.42)');
+  ctx.fillStyle = borde; ctx.fillRect(0, 0, S, S);
+
+  ctx.restore();
+  scene.textures.get('sombra').refresh();
+}
+
+function texturaAtmosfera(scene) {
+  const S = 640, c = S / 2, R = 250 * (S / 512);
+  const ctx = scene.textures.createCanvas('atmosfera', S, S).getContext();
+  // el halo se recorta a un círculo: fuera de él el canvas queda completamente
+  // vacío, si no el blend aditivo deja un rectángulo azulado alrededor
+  const halo = ctx.createRadialGradient(c, c, R * 0.90, c, c, R * 1.24);
+  halo.addColorStop(0, 'rgba(110,200,255,0.00)');
+  halo.addColorStop(0.35, 'rgba(110,200,255,0.42)');
+  halo.addColorStop(0.7, 'rgba(70,150,255,0.16)');
+  halo.addColorStop(1, 'rgba(70,150,255,0)');
+  ctx.save();
+  ctx.beginPath(); ctx.arc(c, c, R * 1.24, 0, Math.PI * 2); ctx.clip();
+  ctx.fillStyle = halo; ctx.fillRect(0, 0, S, S);
+  ctx.restore();
+  scene.textures.get('atmosfera').refresh();
+}
+
+function texturaEstrellas(scene, key, cantidad, brillo) {
+  const S = 512;
+  const ctx = scene.textures.createCanvas(key, S, S).getContext();
+  let semilla = cantidad * 7919;
+  const azar = () => { semilla = (semilla * 1103515245 + 12345) % 2147483648; return semilla / 2147483648; };
+  for (let i = 0; i < cantidad; i++) {
+    const x = azar() * S, y = azar() * S;
+    const r = 0.4 + azar() * brillo;
+    const a = 0.25 + azar() * 0.75;
+    ctx.fillStyle = azar() > 0.88 ? `rgba(180,215,255,${a})` : `rgba(255,255,255,${a})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  scene.textures.get(key).refresh();
+}
+
+function texturaNave(scene) {
+  const ctx = scene.textures.createCanvas('nave', 64, 64).getContext();
+  // apunta hacia +x; la escena la rota según la velocidad
+  ctx.fillStyle = '#c9d6e4';                      // aletas
+  ctx.beginPath(); ctx.moveTo(20, 24); ctx.lineTo(10, 12); ctx.lineTo(24, 22); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(20, 40); ctx.lineTo(10, 52); ctx.lineTo(24, 42); ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = '#5c6b7d';                      // tobera
+  ctx.fillRect(8, 27, 10, 10);
+
+  const cuerpo = ctx.createLinearGradient(0, 22, 0, 42);  // cuerpo
+  cuerpo.addColorStop(0, '#ffffff');
+  cuerpo.addColorStop(0.5, '#e6edf5');
+  cuerpo.addColorStop(1, '#9fb0c2');
+  ctx.fillStyle = cuerpo;
+  ctx.beginPath();
+  ctx.moveTo(16, 22); ctx.lineTo(44, 22);
+  ctx.quadraticCurveTo(56, 32, 44, 42);
+  ctx.lineTo(16, 42);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = '#ff7a7a';                      // punta
+  ctx.beginPath(); ctx.moveTo(44, 22); ctx.quadraticCurveTo(60, 32, 44, 42); ctx.quadraticCurveTo(48, 32, 44, 22); ctx.fill();
+
+  ctx.fillStyle = '#6fd3ff';                      // ventanas
+  ctx.beginPath(); ctx.arc(35, 32, 4.2, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2b6c93';
+  ctx.beginPath(); ctx.arc(35, 32, 2.0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(111,211,255,0.85)';
+  ctx.beginPath(); ctx.arc(25, 32, 2.6, 0, Math.PI * 2); ctx.fill();
+  scene.textures.get('nave').refresh();
+}
+
+function texturaLlama(scene) {
+  const S = 48, ctx = scene.textures.createCanvas('llama', S, S).getContext();
+  const g = ctx.createLinearGradient(S, S / 2, 0, S / 2);
+  g.addColorStop(0, 'rgba(255,240,180,0.95)');
+  g.addColorStop(0.35, 'rgba(255,170,60,0.85)');
+  g.addColorStop(1, 'rgba(255,80,40,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(S, S / 2 - 8); ctx.quadraticCurveTo(S * 0.4, S / 2 - 10, 2, S / 2);
+  ctx.quadraticCurveTo(S * 0.4, S / 2 + 10, S, S / 2 + 8);
+  ctx.closePath(); ctx.fill();
+  scene.textures.get('llama').refresh();
+}
+
+function texturaChispa(scene) {
+  const S = 16, c = 8, ctx = scene.textures.createCanvas('chispa', S, S).getContext();
+  const g = ctx.createRadialGradient(c, c, 0, c, c, c);
+  g.addColorStop(0, 'rgba(255,240,190,1)');
+  g.addColorStop(0.4, 'rgba(255,160,60,0.9)');
+  g.addColorStop(1, 'rgba(255,90,40,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(c, c, c, 0, Math.PI * 2); ctx.fill();
+  scene.textures.get('chispa').refresh();
+}
+
+// ---------------------------------------------------------------- escena
 class Lab extends Phaser.Scene {
   create() {
-    this.g = this.add.graphics();
-    const f = { fontFamily: '"JetBrains Mono", monospace', fontSize: '12px' };
-    this.etiquetas = [
-      this.add.text(0, 0, 'X', Object.assign({ color: '#5b6b7f' }, f)),
-      this.add.text(0, 0, 'Y', Object.assign({ color: '#5b6b7f' }, f)),
-      this.add.text(0, 0, 'V', Object.assign({ color: '#4ade80' }, f)),
-      this.add.text(0, 0, 'g', Object.assign({ color: '#ff7a7a' }, f)),
-    ];
+    texturaTierra(this); texturaSombra(this); texturaAtmosfera(this);
+    texturaEstrellas(this, 'estrellas1', 220, 0.7);
+    texturaEstrellas(this, 'estrellas2', 120, 1.1);
+    texturaEstrellas(this, 'estrellas3', 45, 1.7);
+    texturaNave(this); texturaLlama(this); texturaChispa(this);
+
+    const { width: w, height: h } = this.scale;
+
+    // fondo: tres capas de estrellas con velocidades distintas (paralaje)
+    this.capas = ['estrellas1', 'estrellas2', 'estrellas3'].map((k, i) =>
+      this.add.tileSprite(0, 0, w, h, k).setOrigin(0).setDepth(-40 + i).setScrollFactor(0)
+        .setAlpha(0.55 + i * 0.2));
+
+    this.atmosfera = this.add.image(0, 0, 'atmosfera').setDepth(-30).setBlendMode(Phaser.BlendModes.ADD);
+    this.superficie = this.add.image(0, 0, 'tierra').setDepth(-29);
+    this.sombra = this.add.image(0, 0, 'sombra').setDepth(-28);
+
+    this.g = this.add.graphics().setDepth(-10);      // trayectoria, ejes, vectores
+    this.llama = this.add.image(0, 0, 'llama').setDepth(4).setVisible(false);
+    this.nave = this.add.image(0, 0, 'nave').setDepth(5);
+
+    const fuente = { fontFamily: '"JetBrains Mono", monospace', fontSize: '13px' };
+    this.txtEstado = this.add.text(14, 12, '', { ...fuente, fontSize: '15px', color: '#d7e0ea' }).setDepth(20);
+    this.txtZoom = this.add.text(0, 12, '', { ...fuente, color: '#8b98a8' }).setDepth(20).setOrigin(1, 0);
+    this.txtEscala = this.add.text(0, 30, '', { ...fuente, color: '#8b98a8' }).setDepth(20).setOrigin(1, 0);
+    this.txtAyuda = this.add.text(14, 0, '', { ...fuente, color: '#8b98a8', lineSpacing: 3 }).setDepth(20).setOrigin(0, 1);
+    this.txtCuenta = this.add.text(0, 0, '', { ...fuente, fontSize: '96px', color: '#ffd479' }).setDepth(30).setOrigin(0.5);
+    this.txtPeri = this.add.text(0, 0, 'PERIAPSIS', { ...fuente, fontSize: '11px', color: '#ffb26f' }).setDepth(20).setOrigin(0.5).setVisible(false);
+    this.txtApo = this.add.text(0, 0, 'APOAPSIS', { ...fuente, fontSize: '11px', color: '#6fd3ff' }).setDepth(20).setOrigin(0.5).setVisible(false);
+    this.txtVel = this.add.text(0, 0, 'V', { ...fuente, fontSize: '12px', color: '#4ade80' }).setDepth(20);
+    this.txtGrav = this.add.text(0, 0, 'g', { ...fuente, fontSize: '12px', color: '#ff7a7a' }).setDepth(20);
+    this.txtEjeX = this.add.text(0, 0, 'X', { ...fuente, fontSize: '12px', color: '#5b6b7f' }).setDepth(20);
+    this.txtEjeY = this.add.text(0, 0, 'Y', { ...fuente, fontSize: '12px', color: '#5b6b7f' }).setDepth(20);
+
+    this.tiempoVida = 0;
   }
 
   update(_, deltaMs) {
-    if (sim.corriendo) avanzar((deltaMs / 1000) * sim.velocidadTiempo);
-    this.dibujar();
-    renderPanel(sim.s, sim.t, sim.estado);
+    const dtReal = Math.min(deltaMs, 100) / 1000;
+    this.tiempoVida += dtReal;
+
+    avanzarCuenta(dtReal);
+    if (sim.corriendo) {
+      avanzar(dtReal * sim.velocidadTiempo);
+      if (sim.motor > 0) sim.motor -= dtReal;
+    }
+    while (sim.eventos.length) this.atender(sim.eventos.shift());
+
+    this.dibujar(dtReal);
+    renderPanel();
   }
 
-  dibujar() {
+  atender(evento) {
+    if (evento === 'lanzar') {
+      this.cameras.main.shake(320, 0.004);
+      ocultarImpacto();
+    }
+    if (evento === 'impacto') {
+      const { x, y } = this.aPantalla(sim.s.x, sim.s.y);
+      this.cameras.main.shake(420, 0.012);
+      this.add.particles(x, y, 'chispa', {
+        speed: { min: 40, max: 260 }, lifespan: { min: 300, max: 900 },
+        scale: { start: 1.1, end: 0 }, alpha: { start: 1, end: 0 },
+        blendMode: 'ADD', emitting: false,
+      }).setDepth(15).explode(38);
+      const onda = this.add.circle(x, y, 10, 0xffa040, 0.55).setDepth(14);
+      this.tweens.add({ targets: onda, scale: 7, alpha: 0, duration: 800, onComplete: () => onda.destroy() });
+      mostrarImpacto();
+    }
+  }
+
+  aPantalla(xKm, yKm) {
+    return { x: this.scale.width / 2 + xKm * vista.escala,
+             y: this.scale.height / 2 - yKm * vista.escala };
+  }
+
+  dibujar(dtReal) {
     const w = this.scale.width, h = this.scale.height;
     const cx = w / 2, cy = h / 2;
     const r = Math.hypot(sim.s.x, sim.s.y);
 
-    // zoom automático suave: que quepan el planeta y la nave
-    const objetivo = (Math.min(w, h) / 2) * 0.85 / Math.max(r * 1.1, R_PLANET * 1.5);
-    sim.escala += (objetivo - sim.escala) * 0.05;
-    const k = sim.escala;
-    const px = (x) => cx + x * k;
-    const py = (y) => cy - y * k;
+    // --- cámara: la Tierra siempre visible; se aleja sola si la nave se va
+    vista.escalaRef = (Math.min(w, h) / 2) * 0.86 / ((R_PLANET + 400) * 1.35);
+    const objetivo = (Math.min(w, h) / 2) * 0.86 / Math.max(r * 1.35, R_PLANET * 2.05);
+    vista.escala = vista.reencuadrar ? objetivo : vista.escala + (objetivo - vista.escala) * 0.045;
+    vista.reencuadrar = false;
+    const k = vista.escala;
+    const px = (x) => cx + x * k, py = (y) => cy - y * k;
+
+    // --- estrellas con paralaje: cada capa se mueve un poco distinto
+    this.capas.forEach((capa, i) => {
+      capa.setSize(w, h);
+      const f = 0.4 + i * 0.55;
+      capa.tilePositionX = this.tiempoVida * 1.6 * f - (sim.s.x * k) * 0.012 * f;
+      capa.tilePositionY = this.tiempoVida * 0.6 * f + (sim.s.y * k) * 0.012 * f;
+      capa.setAlpha((0.5 + i * 0.2) * (0.9 + 0.1 * Math.sin(this.tiempoVida * (0.7 + i * 0.3))));
+    });
+
+    // --- Tierra: rotación muy lenta y tamaño según el zoom
+    const dPlaneta = R_PLANET * 2 * k;
+    this.superficie.setPosition(cx, cy).setDisplaySize(dPlaneta, dPlaneta)
+      .setRotation(this.tiempoVida * 0.012);
+    this.sombra.setPosition(cx, cy).setDisplaySize(dPlaneta, dPlaneta);
+    this.atmosfera.setPosition(cx, cy).setDisplaySize(dPlaneta * 1.28, dPlaneta * 1.28);
 
     const g = this.g;
     g.clear();
 
-    // ejes X / Y
+    // --- ejes
     if ($('ckAxes').checked) {
-      g.lineStyle(1, 0x3a4757, 1);
+      g.lineStyle(1, 0x2f3b4c, 1);
       g.beginPath(); g.moveTo(0, cy); g.lineTo(w, cy); g.strokePath();
       g.beginPath(); g.moveTo(cx, 0); g.lineTo(cx, h); g.strokePath();
-      this.pon(0, w - 16, cy - 16);
-      this.pon(1, cx + 8, 8);
-    } else { this.pon(0, -50, -50); this.pon(1, -50, -50); }
+      this.txtEjeX.setPosition(w - 18, cy - 18).setVisible(true);
+      this.txtEjeY.setPosition(cx + 8, 8).setVisible(true);
+    } else { this.txtEjeX.setVisible(false); this.txtEjeY.setVisible(false); }
 
-    // planeta
-    g.fillStyle(0x1b4a7a, 1);
-    g.fillCircle(cx, cy, R_PLANET * k);
-    g.lineStyle(1, 0x6fd3ff, 0.9);
-    g.strokeCircle(cx, cy, R_PLANET * k);
+    // --- trayectoria: el recorrido entero tenue y el tramo reciente brillante
+    const tz = sim.traza;
+    if (tz.length > 1) {
+      // con la traza muy larga se dibuja uno de cada N puntos: la línea es la
+      // misma a simple vista y el navegador no se ahoga
+      const salto = Math.max(1, Math.ceil(tz.length / 900));
+      g.lineStyle(1.5, 0xffd479, 0.35);
+      g.beginPath(); g.moveTo(px(tz[0].x), py(tz[0].y));
+      for (let i = salto; i < tz.length; i += salto) g.lineTo(px(tz[i].x), py(tz[i].y));
+      g.lineTo(px(tz[tz.length - 1].x), py(tz[tz.length - 1].y));
+      g.strokePath();
 
-    // trayectoria
-    if (sim.traza.length > 1) {
-      g.lineStyle(1, 0xffd479, 0.9);
-      g.beginPath();
-      g.moveTo(px(sim.traza[0].x), py(sim.traza[0].y));
-      for (const p of sim.traza) g.lineTo(px(p.x), py(p.y));
+      const desde = Math.max(0, tz.length - 140);
+      g.lineStyle(2, 0xffe6a8, 0.95);
+      g.beginPath(); g.moveTo(px(tz[desde].x), py(tz[desde].y));
+      for (let i = desde; i < tz.length; i++) g.lineTo(px(tz[i].x), py(tz[i].y));
       g.strokePath();
     }
 
-    // nave
+    // --- ápsides de la elipse (sólo si la órbita es realmente elíptica)
+    const el = orbitalElements(sim.s);
+    const mostrarApsides = sim.fase === 'vuelo' && el.e >= 0.02 && el.e < 1;
+    if (mostrarApsides) {
+      const marcar = (rad, ang, color, txt) => {
+        const X = px(rad * Math.cos(ang)), Y = py(rad * Math.sin(ang));
+        g.lineStyle(1.5, color, 0.9);
+        g.strokeCircle(X, Y, 6);
+        g.beginPath(); g.moveTo(X - 9, Y); g.lineTo(X + 9, Y); g.strokePath();
+        g.beginPath(); g.moveTo(X, Y - 9); g.lineTo(X, Y + 9); g.strokePath();
+        txt.setPosition(X, Y - 18).setVisible(true);
+      };
+      marcar(el.rPeri, el.anguloPeriapsis, 0xffb26f, this.txtPeri);
+      marcar(el.rApo, el.anguloPeriapsis + Math.PI, 0x6fd3ff, this.txtApo);
+      this.txtPeri.setText(`PERIAPSIS ${Math.round(el.rPeri - R_PLANET)} km`);
+      this.txtApo.setText(`APOAPSIS ${Math.round(el.rApo - R_PLANET)} km`);
+    } else { this.txtPeri.setVisible(false); this.txtApo.setVisible(false); }
+
+    // --- nave: posición y rumbo salen directo de la física
     const nx = px(sim.s.x), ny = py(sim.s.y);
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(nx, ny, 4);
-
-    // vector velocidad (verde) — hacia donde se mueve
     const v = Math.hypot(sim.s.vx, sim.s.vy);
-    if ($('ckVel').checked && v > 0) {
-      const L = Phaser.Math.Clamp(v * 10, 25, 140);
-      const ex = nx + (sim.s.vx / v) * L, ey = ny - (sim.s.vy / v) * L;
-      this.flecha(g, nx, ny, ex, ey, 0x4ade80);
-      this.pon(2, ex + 6, ey - 6);
-    } else this.pon(2, -50, -50);
+    const rumbo = Math.atan2(-sim.s.vy, sim.s.vx);
+    const visible = sim.fase !== 'impacto';
+    this.nave.setVisible(visible).setPosition(nx, ny).setRotation(rumbo).setDisplaySize(38, 38);
 
-    // vector gravedad (rojo) — siempre hacia el centro del planeta
+    // llama del motor durante el lanzamiento
+    const motorEncendido = sim.motor > 0 && sim.fase === 'vuelo';
+    this.llama.setVisible(motorEncendido);
+    if (motorEncendido) {
+      const pulso = 0.85 + 0.25 * Math.sin(this.tiempoVida * 30);
+      this.llama.setPosition(nx - Math.cos(rumbo) * 22, ny - Math.sin(rumbo) * 22)
+        .setRotation(rumbo).setDisplaySize(34 * pulso, 20 * pulso)
+        .setAlpha(0.9 * Math.min(1, sim.motor));
+    }
+
+    // --- vectores
+    if ($('ckVel').checked && v > 0 && visible) {
+      const L = Phaser.Math.Clamp(v * 11, 30, 150);
+      const ex = nx + (sim.s.vx / v) * L, ey = ny - (sim.s.vy / v) * L;
+      this.flecha(g, nx, ny, ex, ey, 0x4ade80, sim.fase === 'listo');
+      this.txtVel.setPosition(ex + 6, ey - 14).setText(`V ${v.toFixed(2)} km/s`).setVisible(true);
+    } else this.txtVel.setVisible(false);
+
     const { ax, ay } = accel(sim.s.x, sim.s.y);
     const a = Math.hypot(ax, ay);
-    if ($('ckGrav').checked && a > 0) {
-      const L = Phaser.Math.Clamp(a * 6000, 25, 120);
+    if ($('ckGrav').checked && a > 0 && visible) {
+      const L = Phaser.Math.Clamp(a * 7000, 28, 130);
       const ex = nx + (ax / a) * L, ey = ny - (ay / a) * L;
-      this.flecha(g, nx, ny, ex, ey, 0xff7a7a);
-      this.pon(3, ex + 6, ey - 6);
-    } else this.pon(3, -50, -50);
+      this.flecha(g, nx, ny, ex, ey, 0xff7a7a, false);
+      this.txtGrav.setPosition(ex + 6, ey + 4).setText(`g ${(a * 1000).toFixed(2)} m/s²`).setVisible(true);
+    } else this.txtGrav.setVisible(false);
+
+    // --- carteles
+    const clave = estadoActual();
+    const e = ESTADOS[clave];
+    this.txtEstado.setText(`${e.chip}  ${e.texto}`).setColor(e.color);
+
+    const zoom = k / vista.escalaRef;
+    this.txtZoom.setPosition(w - 14, 12).setText(`ZOOM ×${zoom >= 1 ? zoom.toFixed(1) : zoom.toFixed(2)}`);
+    const kmBarra = Math.round(120 / k / 500) * 500 || 500;
+    this.txtEscala.setPosition(w - 14, 32).setText(`▬ ${kmBarra.toLocaleString('es')} km`);
+    g.lineStyle(2, 0x5b6b7f, 1);
+    const bx = w - 14 - kmBarra * k;
+    g.beginPath(); g.moveTo(bx, 50); g.lineTo(w - 14, 50); g.strokePath();
+
+    if ($('ckAyuda').checked) {
+      const cierre = {
+        circular: '= TRAYECTORIA CURVA ↘  cae, pero nunca llega: órbita',
+        eliptica: '= TRAYECTORIA CURVA ↘  cae de más y sube de más: elipse',
+        escape:   '= TRAYECTORIA CURVA ↘  la gravedad ya no alcanza a frenarla',
+        escapado: '= TRAYECTORIA CURVA ↘  la gravedad ya no alcanza a frenarla',
+        impacto:  '= TRAYECTORIA CURVA ↘  faltó velocidad de costado: cayó',
+      }[clave] || '= TRAYECTORIA CURVA ↘  la suma de las dos flechas';
+      this.txtAyuda.setPosition(14, h - 12).setVisible(true).setText(
+        'VELOCIDAD →   la nave avanza de costado\n' +
+        '+ GRAVEDAD ↓  la Tierra tira de ella\n' + cierre);
+    } else this.txtAyuda.setVisible(false);
+
+    this.txtCuenta.setPosition(cx, cy - Math.min(w, h) * 0.28);
+    if (sim.fase === 'cuenta') {
+      const n = Math.ceil(sim.cuenta);
+      this.txtCuenta.setText(n > 0 ? String(n) : '🚀').setVisible(true).setAlpha(1 - (Math.ceil(sim.cuenta) - sim.cuenta));
+    } else this.txtCuenta.setVisible(false);
   }
 
-  pon(i, x, y) { this.etiquetas[i].setPosition(x, y); }
-
-  flecha(g, x1, y1, x2, y2, color) {
-    g.lineStyle(2, color, 1);
-    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.strokePath();
-    const ang = Math.atan2(y2 - y1, x2 - x1);
-    const p = 9;
+  flecha(g, x1, y1, x2, y2, color, punteada) {
+    g.lineStyle(2.5, color, 1);
+    if (punteada) {
+      const largo = Math.hypot(x2 - x1, y2 - y1), pasos = Math.max(2, Math.floor(largo / 10));
+      for (let i = 0; i < pasos; i += 2) {
+        const t1 = i / pasos, t2 = Math.min(1, (i + 1) / pasos);
+        g.beginPath();
+        g.moveTo(x1 + (x2 - x1) * t1, y1 + (y2 - y1) * t1);
+        g.lineTo(x1 + (x2 - x1) * t2, y1 + (y2 - y1) * t2);
+        g.strokePath();
+      }
+    } else {
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.strokePath();
+    }
+    const ang = Math.atan2(y2 - y1, x2 - x1), p = 11;
     g.beginPath();
     g.moveTo(x2, y2);
     g.lineTo(x2 - p * Math.cos(ang - 0.4), y2 - p * Math.sin(ang - 0.4));
     g.lineTo(x2 - p * Math.cos(ang + 0.4), y2 - p * Math.sin(ang + 0.4));
-    g.closePath();
-    g.fillStyle(color, 1);
-    g.fillPath();
+    g.closePath(); g.fillStyle(color, 1); g.fillPath();
   }
 }
+
+// ===================== src/main.js =====================
+// Arranque de la aplicación: crea el juego de Phaser y conecta los controles.
+
 
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  backgroundColor: '#0d1117',
+  backgroundColor: '#05070d',
   scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
   scene: Lab,
 });
 
-// =============================== CONTROLES ===============================
-function sincronizarEtiquetas() {
+const controles = () => ({
+  v0: parseFloat($('inV').value),
+  altura: parseFloat($('inH').value),
+  angulo: parseFloat($('inA').value),
+});
+
+// Flecha que muestra hacia dónde apunta el ángulo elegido (0° = →, 90° = ↑).
+const BRUJULA = ['→', '↗', '↑', '↖', '←', '↙', '↓', '↘'];
+
+function sincronizar() {
   $('outV').textContent = parseFloat($('inV').value).toFixed(2);
   $('outH').textContent = $('inH').value;
   $('outA').textContent = $('inA').value;
+  const i = Math.round((parseFloat($('inA').value) % 360) / 45) % 8;
+  $('brujula').textContent = BRUJULA[i];
+}
+
+function preparar(lanzar) {
+  reiniciar(controles(), lanzar);
+  vista.reencuadrar = true;
+  ocultarImpacto();
+  $('btnPause').textContent = 'PAUSA';
 }
 
 for (const id of ['inV', 'inH', 'inA']) {
-  $(id).addEventListener('input', () => { sincronizarEtiquetas(); reiniciar(false); });
+  $(id).addEventListener('input', () => { sincronizar(); preparar(false); });
 }
 
-$('btnLaunch').addEventListener('click', () => reiniciar(true));
-$('btnReset').addEventListener('click', () => reiniciar(false));
+$('btnLaunch').addEventListener('click', () => preparar(true));
+$('btnReset').addEventListener('click', () => preparar(false));
+$('btnRetry').addEventListener('click', () => preparar(true));
+$('btnClear').addEventListener('click', limpiarTraza);
+
 $('btnPause').addEventListener('click', () => {
+  if (sim.fase === 'impacto' || sim.fase === 'listo') return;
   sim.corriendo = !sim.corriendo;
   $('btnPause').textContent = sim.corriendo ? 'PAUSA' : 'CONTINUAR';
-  sim.estado = sim.corriendo ? 'en vuelo' : 'en pausa';
 });
+
 $('btnStep').addEventListener('click', () => {
-  sim.corriendo = false;
+  darPaso(10);
   $('btnPause').textContent = 'CONTINUAR';
-  avanzar(10); // un intervalito fijo para ver cambiar los números
-  sim.estado = 'paso de 10 s';
 });
 
 document.querySelectorAll('.speed').forEach((b) => {
@@ -507,18 +1173,19 @@ document.querySelectorAll('.speed').forEach((b) => {
 });
 document.querySelector('.speed').classList.add('active');
 
+// Cada experimento deja los valores a la vista y lanza.
 document.querySelectorAll('.preset').forEach((b) => {
   b.addEventListener('click', () => {
     $('inV').value = b.dataset.v;
     $('inH').value = b.dataset.h;
     $('inA').value = b.dataset.a;
-    sincronizarEtiquetas();
-    reiniciar(true);
+    sincronizar();
+    preparar(true);
   });
 });
 
-sincronizarEtiquetas();
-reiniciar(false);
-</script>
+sincronizar();
+preparar(false);
+  </script>
 </body>
 </html>
